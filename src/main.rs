@@ -1,9 +1,9 @@
 use rt::bindgen::{
-    cursorshape, opt_title, run, selinit, setlocale, xinit, xsetcursor,
-    xsetenv, xw, False, XSetLocaleModifiers, LC_CTYPE,
+    cursorshape, opt_title, setlocale, xsetcursor, xw, False,
+    XSetLocaleModifiers, LC_CTYPE,
 };
 
-use rt::tnew;
+use rt::{run, selinit, tnew, xinit, xsetenv};
 
 // extern "C" {
 //     static mut cols: c_uint;

@@ -62,3 +62,19 @@ pub fn tnew(col: c_int, row: c_int) {
         treset();
     }
 }
+
+pub fn xinit(col: c_int, row: c_int) {
+    unsafe { bindgen::xinit(col, row) }
+}
+
+pub fn xsetenv() {
+    unsafe { bindgen::xsetenv() }
+}
+
+pub fn selinit() {
+    unsafe { bindgen::selinit() }
+}
+
+pub fn run() {
+    unsafe { bindgen::run() }
+}
