@@ -49,3 +49,6 @@ uninstall:
 	rm -f $(DESTDIR)$(MANPREFIX)/man1/st.1
 
 .PHONY: all clean dist install uninstall
+
+libst.so: st
+	clang -fPIC -shared -o $@ $(SRC) $(STCFLAGS) $(CPPFLAGS) $(STLDFLAGS) $(LDFLAGS) $(INCS)
