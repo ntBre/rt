@@ -1,4 +1,6 @@
-use libc::c_int;
+use std::ffi::c_long;
+
+use libc::{c_int, setenv};
 
 pub mod bindgen {
     #![allow(non_upper_case_globals)]
@@ -43,7 +45,9 @@ pub mod bindgen {
     }
 }
 
-use bindgen::{defaultfg, term, treset, tresize, Glyph_, TCursor, Term};
+use bindgen::{
+    defaultfg, snprintf, term, treset, tresize, xw, Glyph_, TCursor, Term,
+};
 
 /// Initialize the global terminal in `term` to the given size and with default
 /// foreground and background colors.
@@ -67,8 +71,20 @@ pub fn xinit(col: c_int, row: c_int) {
     unsafe { bindgen::xinit(col, row) }
 }
 
+/// Set the `WINDOWID` environment variable to `xw.win`.
 pub fn xsetenv() {
-    unsafe { bindgen::xsetenv() }
+    unsafe {
+        // TODO this can probably just be:
+        // std::env::set_var("WINDOWID", xw.win.to_string());
+        let mut buf = [0; size_of::<c_long>() * 8 + 1];
+        snprintf(
+            buf.as_mut_ptr(),
+            size_of_val(&buf) as u64,
+            c"%lu".as_ptr(),
+            xw.win,
+        );
+        setenv(c"WINDOWID".as_ptr(), buf.as_ptr(), 1);
+    }
 }
 
 pub fn selinit() {
