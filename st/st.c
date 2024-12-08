@@ -84,24 +84,6 @@ enum escape_state {
 	ESC_UTF8       = 64,
 };
 
-typedef struct {
-	int mode;
-	int type;
-	int snap;
-	/*
-	 * Selection variables:
-	 * nb – normalized coordinates of the beginning of the selection
-	 * ne – normalized coordinates of the end of the selection
-	 * ob – original coordinates of the beginning of the selection
-	 * oe – original coordinates of the end of the selection
-	 */
-	struct {
-		int x, y;
-	} nb, ne, ob, oe;
-
-	int alt;
-} Selection;
-
 #include "structs.h"
 
 /* CSI Escape sequence structs */
@@ -193,7 +175,6 @@ static ssize_t xwrite(int, const char *, size_t);
 
 /* Globals */
 #include "global.h"
-static Selection sel;
 static CSIEscape csiescseq;
 static STREscape strescseq;
 static int iofd = 1;

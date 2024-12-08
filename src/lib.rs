@@ -46,7 +46,8 @@ pub mod bindgen {
 }
 
 use bindgen::{
-    defaultfg, snprintf, term, treset, tresize, xw, Glyph_, TCursor, Term,
+    defaultfg, sel, selection_mode_SEL_IDLE, snprintf, term, treset, tresize,
+    xw, Glyph_, TCursor, Term,
 };
 
 /// Initialize the global terminal in `term` to the given size and with default
@@ -87,8 +88,13 @@ pub fn xsetenv() {
     }
 }
 
+/// Initialize the global selection in `sel`.
 pub fn selinit() {
-    unsafe { bindgen::selinit() }
+    unsafe {
+        sel.mode = selection_mode_SEL_IDLE as i32;
+        sel.snap = 0;
+        sel.ob.x = -1;
+    }
 }
 
 pub fn run() {
