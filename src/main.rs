@@ -5,11 +5,6 @@ use rt::bindgen::{
 
 use rt::{run, selinit, tnew, xinit, xsetenv};
 
-// extern "C" {
-//     static mut cols: c_uint;
-//     static mut rows: c_uint;
-// }
-
 fn main() {
     unsafe {
         xw.l = 0;
@@ -26,8 +21,7 @@ fn main() {
 
         let cols = 80;
         let rows = 24;
-        // cols = max(cols, 1);
-        // rows = max(rows, 1);
+
         tnew(cols as i32, rows as i32);
         xinit(cols as i32, rows as i32);
         xsetenv();
