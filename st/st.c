@@ -85,13 +85,6 @@ enum escape_state {
 };
 
 typedef struct {
-	Glyph attr; /* current char attributes */
-	int x;
-	int y;
-	char state;
-} TCursor;
-
-typedef struct {
 	int mode;
 	int type;
 	int snap;
@@ -109,26 +102,7 @@ typedef struct {
 	int alt;
 } Selection;
 
-/* Internal representation of the screen */
-typedef struct {
-	int row;      /* nb row */
-	int col;      /* nb col */
-	Line *line;   /* screen */
-	Line *alt;    /* alternate screen */
-	int *dirty;   /* dirtyness of lines */
-	TCursor c;    /* cursor */
-	int ocx;      /* old cursor col */
-	int ocy;      /* old cursor row */
-	int top;      /* top    scroll limit */
-	int bot;      /* bottom scroll limit */
-	int mode;     /* terminal mode flags */
-	int esc;      /* escape state flags */
-	char trantbl[4]; /* charset table translation */
-	int charset;  /* current charset */
-	int icharset; /* selected charset for sequence */
-	int *tabs;
-	Rune lastc;   /* last printed char outside of sequence, 0 if control */
-} Term;
+#include "structs.h"
 
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
@@ -184,7 +158,6 @@ static void tmoveato(int, int);
 static void tnewline(int);
 static void tputtab(int);
 static void tputc(Rune);
-static void treset(void);
 static void tscrollup(int, int);
 static void tscrolldown(int, int);
 static void tsetattr(const int *, int);
@@ -219,7 +192,7 @@ static char base64dec_getc(const char **);
 static ssize_t xwrite(int, const char *, size_t);
 
 /* Globals */
-static Term term;
+#include "global.h"
 static Selection sel;
 static CSIEscape csiescseq;
 static STREscape strescseq;

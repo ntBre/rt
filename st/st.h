@@ -88,6 +88,7 @@ void toggleprinter(const Arg *);
 
 int tattrset(int);
 void tnew(int, int);
+void treset(void);
 void tresize(int, int);
 void tsetdirtattr(int);
 void ttyhangup(void);

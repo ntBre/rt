@@ -1,18 +1,9 @@
-use bindgen::{
-    cursorshape, opt_title, run, selinit, setlocale, tnew, xinit, xsetcursor,
+use rt::bindgen::{
+    cursorshape, opt_title, run, selinit, setlocale, xinit, xsetcursor,
     xsetenv, xw, False, XSetLocaleModifiers, LC_CTYPE,
 };
 
-mod bindgen {
-    #![allow(non_upper_case_globals)]
-    #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)]
-    #![allow(improper_ctypes)]
-    #![allow(clippy::upper_case_acronyms)]
-    #![allow(unused)]
-
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-}
+use rt::tnew;
 
 // extern "C" {
 //     static mut cols: c_uint;

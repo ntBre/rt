@@ -18,3 +18,5 @@
 #include "st/st.h"
 #include "st/win.h"
 #include "st/x.h"
+#include "st/structs.h"
+#include "st/global.h"
