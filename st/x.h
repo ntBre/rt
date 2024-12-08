@@ -1108,7 +1108,6 @@ xicdestroy(XIC xim, XPointer client, XPointer call)
 void
 xinit(int cols, int rows)
 {
-  fprintf(stderr, "c: xinit\n");
 	XGCValues gcvalues;
 	Cursor cursor;
 	Window parent, root;
@@ -1165,8 +1164,6 @@ xinit(int cols, int rows)
 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
 			DefaultDepth(xw.dpy, xw.scr));
 
-  fprintf(stderr, "c: xinit halfway\n");
-
 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
@@ -1197,8 +1194,6 @@ xinit(int cols, int rows)
 		xmousebg.green = 0x0000;
 		xmousebg.blue  = 0x0000;
 	}
-
-  fprintf(stderr, "c: xinit 3/4\n");
 
 	XRecolorCursor(xw.dpy, cursor, &xmousefg, &xmousebg);
 
@@ -1620,8 +1615,7 @@ void
 xsettitle(char *p)
 {
 	XTextProperty prop;
-	fprintf(stderr, "p: %s\n", p);
-	fprintf(stderr, "opt_title: %s\n", opt_title);
+
 	DEFAULT(p, opt_title);
 
 	if (p[0] == '\0')
