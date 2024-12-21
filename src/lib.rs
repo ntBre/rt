@@ -8,6 +8,7 @@ pub mod bindgen {
     #![allow(non_snake_case)]
     #![allow(improper_ctypes)]
     #![allow(clippy::upper_case_acronyms)]
+    #![allow(clippy::approx_constant)]
     #![allow(unused)]
 
     use std::{ffi::c_char, ptr::null_mut};
@@ -77,7 +78,7 @@ pub fn xsetenv() {
     unsafe {
         // TODO this can probably just be:
         // std::env::set_var("WINDOWID", xw.win.to_string());
-        let mut buf = [0; size_of::<c_long>() * 8 + 1];
+        let mut buf = [0; c_long::BITS as usize + 1];
         snprintf(
             buf.as_mut_ptr(),
             size_of_val(&buf) as u64,

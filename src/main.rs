@@ -22,8 +22,8 @@ fn main() {
         let cols = 80;
         let rows = 24;
 
-        tnew(cols as i32, rows as i32);
-        xinit(cols as i32, rows as i32);
+        tnew(cols, rows);
+        xinit(cols, rows);
         xsetenv();
         selinit();
         run();
