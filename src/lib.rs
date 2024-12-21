@@ -51,6 +51,33 @@ use bindgen::{
     xw, Glyph_, TCursor, Term,
 };
 
+#[inline]
+pub fn between<T>(x: T, a: T, b: T) -> bool
+where
+    T: PartialOrd,
+{
+    (a..=b).contains(&x)
+}
+
+pub mod x {
+    use std::ffi::c_int;
+
+    use crate::{between, bindgen::win};
+
+    // NOTE returns bool?
+    pub fn xsetcursor(cursor: c_int) -> c_int {
+        // NOTE(st): 7: st extension
+        if !between(cursor, 0, 7) {
+            return 1;
+        }
+        unsafe {
+            win.cursor = cursor;
+        }
+
+        0
+    }
+}
+
 /// Initialize the global terminal in `term` to the given size and with default
 /// foreground and background colors.
 pub fn tnew(col: c_int, row: c_int) {
