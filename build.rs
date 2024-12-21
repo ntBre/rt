@@ -1,6 +1,8 @@
 use std::{env, path::PathBuf};
 
 fn main() {
+    println!("cargo:rerun-if-changed=st/st.c");
+
     println!("cargo:rerun-if-changed=st/config.h");
     println!("cargo:rerun-if-changed=st/st.h");
     println!("cargo:rerun-if-changed=wrapper.h");
