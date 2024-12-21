@@ -87,13 +87,17 @@ void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
 int tattrset(int);
+int ttynew(const char *, char *, const char *, char **);
+size_t ttyread(void);
+void tclearregion(int, int, int, int);
+void tcursor(int);
+void tmoveto(int, int);
 void tnew(int, int);
 void treset(void);
 void tresize(int, int);
 void tsetdirtattr(int);
+void tswapscreen(void);
 void ttyhangup(void);
-int ttynew(const char *, char *, const char *, char **);
-size_t ttyread(void);
 void ttyresize(int, int);
 void ttywrite(const char *, size_t, int);
 
