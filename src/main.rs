@@ -9,14 +9,14 @@ fn main() {
     unsafe {
         xw.l = 0;
         xw.t = 0;
-        xw.isfixed = xlib::False as i32;
+        xw.isfixed = xlib::False;
         xsetcursor(cursorshape as i32);
 
         if opt_title.is_null() {
             opt_title = c"rt".as_ptr() as *mut _;
         }
 
-        libc::setlocale(libc::LC_CTYPE as i32, c"".as_ptr());
+        libc::setlocale(libc::LC_CTYPE, c"".as_ptr());
         xlib::XSetLocaleModifiers(c"".as_ptr());
 
         let cols = 80;
