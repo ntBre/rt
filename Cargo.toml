@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 libc = "0.2.167"
+x11 = { version = "2.21.0", features = ["xlib"] }
 
 [build-dependencies]
 bindgen = "0.71.0"
