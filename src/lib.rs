@@ -180,12 +180,28 @@ pub fn treset() {
         term.charset = 0;
 
         for _ in 0..2 {
-            bindgen::tmoveto(0, 0);
-            bindgen::tcursor(CURSOR_SAVE);
-            bindgen::tclearregion(0, 0, term.col - 1, term.row - 1);
-            bindgen::tswapscreen();
+            tmoveto(0, 0);
+            tcursor(CURSOR_SAVE);
+            tclearregion(0, 0, term.col - 1, term.row - 1);
+            tswapscreen();
         }
     }
+}
+
+pub fn tmoveto(x: c_int, y: c_int) {
+    unsafe { bindgen::tmoveto(x, y) }
+}
+
+pub fn tcursor(mode: c_int) {
+    unsafe { bindgen::tcursor(mode) }
+}
+
+pub fn tclearregion(x1: c_int, y1: c_int, x2: c_int, y2: c_int) {
+    unsafe { bindgen::tclearregion(x1, y1, x2, y2) }
+}
+
+pub fn tswapscreen() {
+    unsafe { bindgen::tswapscreen() }
 }
 
 pub fn xinit(col: c_int, row: c_int) {
