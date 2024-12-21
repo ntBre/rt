@@ -1,3 +1,6 @@
+clippy:
+	cargo clippy
+
 st/libst.so: $(shell find st -name '*.[ch]')
 	cd st && make libst.so
 
