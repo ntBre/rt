@@ -47,8 +47,8 @@ pub mod bindgen {
 }
 
 use bindgen::{
-    defaultfg, sel, selection_mode_SEL_IDLE, snprintf, term, treset, tresize,
-    xw, Glyph_, TCursor, Term,
+    defaultfg, sel, selection_mode_SEL_IDLE, snprintf, term, xw, Glyph_,
+    TCursor, Term,
 };
 
 #[inline]
@@ -94,6 +94,14 @@ pub fn tnew(col: c_int, row: c_int) {
         tresize(col, row);
         treset();
     }
+}
+
+pub fn tresize(col: c_int, row: c_int) {
+    unsafe { bindgen::tresize(col, row) }
+}
+
+pub fn treset() {
+    unsafe { bindgen::treset() }
 }
 
 pub fn xinit(col: c_int, row: c_int) {
