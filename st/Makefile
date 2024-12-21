@@ -50,5 +50,5 @@ uninstall:
 
 .PHONY: all clean dist install uninstall
 
-libst.so: $(SRC)
+libst.so: $(SRC) x.h
 	clang -fPIC -shared -o $@ $(SRC) $(STCFLAGS) $(CPPFLAGS) $(STLDFLAGS) $(LDFLAGS) $(INCS)

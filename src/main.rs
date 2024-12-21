@@ -1,8 +1,8 @@
 use rt::bindgen::{
-    cursorshape, opt_title, setlocale, xsetcursor, xw, False,
-    XSetLocaleModifiers, LC_CTYPE,
+    cursorshape, opt_title, setlocale, xw, False, XSetLocaleModifiers, LC_CTYPE,
 };
 
+use rt::x::xsetcursor;
 use rt::{run, selinit, tnew, xinit, xsetenv};
 
 fn main() {

@@ -198,7 +198,7 @@ static void (*handler[LASTEvent])(XEvent *) = {
 static DC dc;
 XWindow xw;
 static XSelection xsel;
-static TermWindow win;
+TermWindow win;
 
 /* Font Ring Cache */
 enum {
