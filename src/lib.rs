@@ -177,7 +177,11 @@ pub fn treset() {
         term.bot = term.row - 1;
         term.mode = MODE_WRAP | MODE_UTF8;
 
-        term.trantbl.fill(CS_USA as i8);
+        libc::memset(
+            term.trantbl.as_mut_ptr().cast(),
+            CS_USA,
+            size_of_val(&term.trantbl),
+        );
 
         term.charset = 0;
 
