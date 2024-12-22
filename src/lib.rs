@@ -184,8 +184,18 @@ pub fn treset() {
     }
 }
 
+/// Move the cursor to `x, y`, clamping to the dimensions of the window.
 pub fn tmoveto(x: c_int, y: c_int) {
-    unsafe { bindgen::tmoveto(x, y) }
+    unsafe {
+        let (miny, maxy) = if term.c.state & CURSOR_ORIGIN as i8 != 0 {
+            (term.top, term.bot)
+        } else {
+            (0, term.row - 1)
+        };
+        term.c.state &= !CURSOR_WRAPNEXT as i8;
+        term.c.x = x.clamp(0, term.col - 1);
+        term.c.y = y.clamp(miny, maxy);
+    }
 }
 
 pub fn tcursor(mode: c_int) {
