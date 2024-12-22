@@ -95,6 +95,7 @@ void tmoveto(int, int);
 void tnew(int, int);
 void treset(void);
 void tresize(int, int);
+void tsetdirt(int, int);
 void tsetdirtattr(int);
 void tswapscreen(void);
 void ttyhangup(void);

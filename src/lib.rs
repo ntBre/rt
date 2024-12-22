@@ -115,6 +115,11 @@ pub const ATTR_WIDE: c_int = 1 << 9;
 pub const ATTR_WDUMMY: c_int = 1 << 10;
 pub const ATTR_BOLD_FAINT: c_int = ATTR_BOLD | ATTR_FAINT;
 
+// enum selection_mode
+pub const SEL_IDLE: c_int = 0;
+pub const SEL_EMPTY: c_int = 1;
+pub const SEL_READY: c_int = 2;
+
 // enum term_mode
 pub const MODE_WRAP: c_int = 1 << 0;
 pub const MODE_INSERT: c_int = 1 << 1;
@@ -269,8 +274,32 @@ fn selected(x: c_int, y: c_int) -> c_int {
     unsafe { bindgen::selected(x, y) }
 }
 
+/// Clear the current selection.
 fn selclear() {
-    unsafe { bindgen::selclear() }
+    unsafe {
+        if sel.ob.x == -1 {
+            return;
+        }
+        sel.mode = SEL_IDLE;
+        sel.ob.x = -1;
+        tsetdirt(sel.nb.y, sel.ne.y);
+    }
+}
+
+/// Mark the rows between `top` and `bot` dirty.
+fn tsetdirt(top: c_int, bot: c_int) {
+    unsafe {
+        let top = top.clamp(0, term.row - 1);
+        let bot = bot.clamp(0, term.row - 1);
+
+        for i in top..=bot {
+            // TODO term.dirty is obviously a dynamic array of bool with size
+            // equal to the number of rows in the terminal. thus, refactoring
+            // can happen in two steps: first, make *mut bool, then make it a
+            // vec that can be resized instead of xrealloc in C
+            *term.dirty.offset(i as isize) = 1;
+        }
+    }
 }
 
 pub fn tswapscreen() {
