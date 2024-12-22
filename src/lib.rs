@@ -125,6 +125,7 @@ pub const MODE_PRINT: c_int = 1 << 5;
 pub const MODE_UTF8: c_int = 1 << 6;
 
 // enum cursor_movement
+// TODO these are definitely used like rust enums
 pub const CURSOR_SAVE: c_int = 0;
 pub const CURSOR_LOAD: c_int = 1;
 
@@ -198,8 +199,29 @@ pub fn tmoveto(x: c_int, y: c_int) {
     }
 }
 
+#[inline]
+fn is_set(flag: c_int) -> bool {
+    unsafe { term.mode & flag != 0 }
+}
+
+/// Load or save cursor state depending on the value of `mode`, which should be
+/// either `CURSOR_SAVE` or `CURSOR_LOAD`.
 pub fn tcursor(mode: c_int) {
-    unsafe { bindgen::tcursor(mode) }
+    static mut C: [TCursor; 2] = [TCursor {
+        attr: Glyph_ { u: 0, mode: 0, fg: 0, bg: 0 },
+        x: 0,
+        y: 0,
+        state: 0,
+    }; 2];
+    let alt = is_set(MODE_ALTSCREEN) as usize;
+    unsafe {
+        if mode == CURSOR_SAVE {
+            C[alt] = term.c;
+        } else if mode == CURSOR_LOAD {
+            term.c = C[alt];
+            tmoveto(C[alt].x, C[alt].y);
+        }
+    }
 }
 
 pub fn tclearregion(x1: c_int, y1: c_int, x2: c_int, y2: c_int) {
