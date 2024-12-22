@@ -224,8 +224,45 @@ pub fn tcursor(mode: c_int) {
     }
 }
 
-pub fn tclearregion(x1: c_int, y1: c_int, x2: c_int, y2: c_int) {
-    unsafe { bindgen::tclearregion(x1, y1, x2, y2) }
+/// Clear the region defined by the provided coordinates, clamping to the bounds
+/// of the window.
+///
+/// If the bounds are provided in the "wrong" order (eg x1 > x2), these are
+/// swapped as well.
+pub fn tclearregion(
+    mut x1: c_int,
+    mut y1: c_int,
+    mut x2: c_int,
+    mut y2: c_int,
+) {
+    unsafe {
+        if x1 > x2 {
+            std::mem::swap(&mut x1, &mut x2);
+        }
+        if y1 > y2 {
+            std::mem::swap(&mut y1, &mut y2);
+        }
+
+        let x1 = x1.clamp(0, term.col - 1);
+        let x2 = x2.clamp(0, term.col - 1);
+        let y1 = y1.clamp(0, term.row - 1);
+        let y2 = y2.clamp(0, term.row - 1);
+
+        for y in y1..=y2 {
+            *term.dirty.offset(y as isize) = 1;
+            for x in x1..=x2 {
+                let gp: &mut Glyph_ =
+                    &mut *(*term.line.offset(y as isize)).offset(x as isize);
+                if bindgen::selected(x, y) != 0 {
+                    bindgen::selclear();
+                }
+                gp.fg = term.c.attr.fg;
+                gp.bg = term.c.attr.bg;
+                gp.mode = 0;
+                gp.u = ' ' as u32;
+            }
+        }
+    }
 }
 
 pub fn tswapscreen() {
