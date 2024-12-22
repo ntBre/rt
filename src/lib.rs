@@ -302,8 +302,20 @@ fn tsetdirt(top: c_int, bot: c_int) {
     }
 }
 
+/// Swap the current and alt screens and mark the whole terminal dirty;
 pub fn tswapscreen() {
-    unsafe { bindgen::tswapscreen() }
+    unsafe {
+        std::mem::swap(&mut term.line, &mut term.alt);
+        term.mode ^= MODE_ALTSCREEN;
+        tfulldirt();
+    }
+}
+
+/// Mark the whole terminal dirty.
+fn tfulldirt() {
+    unsafe {
+        tsetdirt(0, term.row - 1);
+    }
 }
 
 pub fn xinit(col: c_int, row: c_int) {
