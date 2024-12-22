@@ -17,7 +17,6 @@ fn main() {
         .header("wrapper.h")
         .clang_arg("-I/usr/include/freetype2")
         .clang_arg("-I/usr/include/X11/extensions")
-        .clang_arg("-DXINERAMA")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .blocklist_var("FP_NAN")
         .blocklist_var("FP_INFINITE")
