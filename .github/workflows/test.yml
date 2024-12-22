@@ -1,0 +1,43 @@
+permissions:
+  contents: read
+on:
+  push:
+    branches: [master]
+  pull_request:
+name: test
+jobs:
+  required:
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
+    strategy:
+      matrix:
+        toolchain: [nightly]
+        os: [ubuntu-latest, macos-13]
+        include:
+          - os: macos-13
+            is_mac: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install X libraries (ubuntu)
+        if: ${{ ! matrix.is_mac }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install libxft-dev libxinerama-dev xserver-xephyr libxcb1-dev lua5.4 liblua5.4-dev
+      - name: Install X libraries (mac)
+        if: ${{ matrix.is_mac }}
+        run: |
+          brew install libxft libxinerama lua
+          brew install --cask xquartz
+          echo "PATH=$PATH:/opt/X11/bin" >> $GITHUB_ENV
+      - name: Install ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      # https://twitter.com/jonhoo/status/1571290371124260865
+      - name: cargo test --locked
+        run: cargo test --locked --all-features --lib --bins --tests --examples -- --test-threads=1
