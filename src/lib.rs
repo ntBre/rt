@@ -253,8 +253,8 @@ pub fn tclearregion(
             for x in x1..=x2 {
                 let gp: &mut Glyph_ =
                     &mut *(*term.line.offset(y as isize)).offset(x as isize);
-                if bindgen::selected(x, y) != 0 {
-                    bindgen::selclear();
+                if selected(x, y) != 0 {
+                    selclear();
                 }
                 gp.fg = term.c.attr.fg;
                 gp.bg = term.c.attr.bg;
@@ -263,6 +263,14 @@ pub fn tclearregion(
             }
         }
     }
+}
+
+fn selected(x: c_int, y: c_int) -> c_int {
+    unsafe { bindgen::selected(x, y) }
+}
+
+fn selclear() {
+    unsafe { bindgen::selclear() }
 }
 
 pub fn tswapscreen() {
