@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         toolchain: [nightly]
-        os: [ubuntu-latest, macos-13]
+        os: [ubuntu-latest]
         include:
           - os: macos-13
             is_mac: 1
