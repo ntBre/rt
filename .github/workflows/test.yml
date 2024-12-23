@@ -7,29 +7,19 @@ on:
 name: test
 jobs:
   required:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     name: ${{ matrix.os }} / ${{ matrix.toolchain }}
     strategy:
       matrix:
         toolchain: [nightly]
-        os: [ubuntu-latest]
-        include:
-          - os: macos-13
-            is_mac: 1
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Install X libraries (ubuntu)
-        if: ${{ ! matrix.is_mac }}
+      - name: Install X libraries
         run: |
           sudo apt-get update
           sudo apt-get install libxft-dev
-      - name: Install X libraries (mac)
-        if: ${{ matrix.is_mac }}
-        run: |
-          brew install libxft
-          pkg-config --cflags freetype2
       - name: Build libst
         run: |
           make st/libst.so
