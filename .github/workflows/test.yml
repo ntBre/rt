@@ -30,6 +30,9 @@ jobs:
         run: |
           brew install libxft
           pkg-config --cflags freetype2
+      - name: Build libst
+        run: |
+          make st/libst.so
       - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:
