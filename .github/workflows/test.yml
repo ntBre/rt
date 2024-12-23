@@ -28,7 +28,8 @@ jobs:
       - name: Install X libraries (mac)
         if: ${{ matrix.is_mac }}
         run: |
-          brew install libxft freetype
+          brew install libxft
+          pkg-config --cflags freetype2
       - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:
