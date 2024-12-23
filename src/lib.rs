@@ -177,7 +177,16 @@ pub fn treset() {
         term.bot = term.row - 1;
         term.mode = MODE_WRAP | MODE_UTF8;
 
-        term.trantbl.fill(CS_USA as i8);
+        libc::memset(
+            &raw mut term.trantbl as *mut _,
+            CS_USA,
+            // TODO this is supposed to be sizeof(term.trantbl), but I can't
+            // figure out how to call size_of_val without creating a reference
+            // to a mutable static. I thought it was 4 (term.trantbl.len()) *
+            // the size of a c_char, but after a segfault and checking sizeof on
+            // a similar array in C, it's just the length of the array
+            4,
+        );
 
         term.charset = 0;
 
@@ -305,7 +314,7 @@ fn tsetdirt(top: c_int, bot: c_int) {
 /// Swap the current and alt screens and mark the whole terminal dirty;
 pub fn tswapscreen() {
     unsafe {
-        std::mem::swap(&mut term.line, &mut term.alt);
+        (term.line, term.alt) = (term.alt, term.line);
         term.mode ^= MODE_ALTSCREEN;
         tfulldirt();
     }

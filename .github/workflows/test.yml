@@ -1,0 +1,35 @@
+permissions:
+  contents: read
+on:
+  push:
+    branches: [master]
+  pull_request:
+name: test
+jobs:
+  required:
+    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
+    strategy:
+      matrix:
+        toolchain: [nightly]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install X libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install libxft-dev
+      - name: Build libst
+        run: |
+          make st/libst.so
+      - name: Install ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      # https://twitter.com/jonhoo/status/1571290371124260865
+      - name: cargo test --locked
+        run: cargo test --locked --all-features --lib --bins --tests --examples -- --test-threads=1

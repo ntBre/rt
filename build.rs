@@ -1,4 +1,7 @@
-use std::{env, path::PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 fn main() {
     println!("cargo:rerun-if-changed=st/st.c");
@@ -11,13 +14,14 @@ fn main() {
     println!("cargo:rustc-link-arg=-lst");
     println!("cargo:rustc-link-arg=-lfontconfig");
     println!("cargo:rustc-link-arg=-lX11");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,/home/brent/Projects/rt/st");
+
+    let st = Path::new("st").canonicalize().unwrap();
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", st.display());
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg("-I/usr/include/freetype2")
         .clang_arg("-I/usr/include/X11/extensions")
-        .clang_arg("-DXINERAMA")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .blocklist_var("FP_NAN")
         .blocklist_var("FP_INFINITE")
