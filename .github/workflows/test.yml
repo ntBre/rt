@@ -8,7 +8,7 @@ name: test
 jobs:
   required:
     runs-on: ubuntu-latest
-    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
+    name: ubuntu / ${{ matrix.toolchain }}
     strategy:
       matrix:
         toolchain: [nightly]
