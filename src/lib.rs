@@ -213,7 +213,7 @@ pub fn tresize(col: c_int, row: c_int) {
         term.col = col;
         term.row = row;
         // reset scrolling region
-        bindgen::tsetscroll(0, row - 1);
+        tsetscroll(0, row - 1);
         // make use of the LIMIT in tmoveto
         tmoveto(term.c.x, term.c.y);
         // clear both screens (it makes dirty all lines)
@@ -229,6 +229,13 @@ pub fn tresize(col: c_int, row: c_int) {
             tcursor(CURSOR_LOAD);
         }
         term.c = c;
+    }
+}
+
+// DUMMY
+fn tsetscroll(t: c_int, b: c_int) {
+    unsafe {
+        bindgen::tsetscroll(t, b);
     }
 }
 
