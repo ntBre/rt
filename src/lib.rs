@@ -1,6 +1,6 @@
-use std::ffi::c_long;
+use std::ffi::{c_long, c_void, CStr};
 
-use libc::{c_int, setenv};
+use libc::{c_int, memset, setenv};
 
 pub mod bindgen {
     #![allow(non_upper_case_globals)]
@@ -48,8 +48,16 @@ pub mod bindgen {
 
 use bindgen::{
     defaultbg, defaultfg, sel, selection_mode_SEL_IDLE, snprintf, tabspaces,
-    term, xw, Glyph_, TCursor, Term,
+    term, xw, Glyph_, Line, TCursor, Term,
 };
+
+#[macro_export]
+macro_rules! die {
+    ($($t:tt)+) => {
+        eprintln!($($t)+);
+        std::process::exit(1);
+    }
+}
 
 #[inline]
 pub fn between<T>(x: T, a: T, b: T) -> bool
@@ -96,9 +104,160 @@ pub fn tnew(col: c_int, row: c_int) {
     }
 }
 
-// DUMMY
+/// Resize the terminal to `col` x `row`.
 pub fn tresize(col: c_int, row: c_int) {
-    unsafe { bindgen::tresize(col, row) }
+    unsafe {
+        let minrow = row.min(term.row);
+        let mincol = col.min(term.col);
+
+        if col < 1 || row < 1 {
+            eprintln!("tresize: error resizing to {col}x{row}");
+            return;
+        }
+
+        // NOTE(st) slide screen to keep cursor where we expect it - tscrollup
+        // would work here, but we can optimize to memmove because we're freeing
+        // the earlier lines
+        let mut i = 0;
+        for i_ in 0..=term.c.y - row {
+            libc::free(term.line.offset(i_ as isize).cast());
+            libc::free(term.alt.offset(i_ as isize).cast());
+            i = i_;
+        }
+
+        // ensure that both src and dst are not NULL
+        if i > 0 {
+            libc::memmove(
+                term.line.cast(),
+                term.line.offset(i as isize).cast(),
+                row as usize * size_of::<Line>(),
+            );
+            libc::memmove(
+                term.alt.cast(),
+                term.alt.offset(i as isize).cast(),
+                row as usize * size_of::<Line>(),
+            );
+        }
+
+        for i_ in i + row..term.row {
+            libc::free(term.line.offset(i_ as isize).cast());
+            libc::free(term.alt.offset(i_ as isize).cast());
+        }
+
+        // resize to new height
+        term.line =
+            xrealloc(term.line.cast(), row as usize * size_of::<Line>()).cast();
+        term.alt =
+            xrealloc(term.alt.cast(), row as usize * size_of::<Line>()).cast();
+        term.dirty = xrealloc(
+            term.dirty.cast(),
+            row as usize * size_of_val(&*term.dirty),
+        )
+        .cast();
+        term.tabs =
+            xrealloc(term.tabs.cast(), col as usize * size_of_val(&*term.tabs))
+                .cast();
+
+        // resize each row to new width, zero-pad if needed
+        for i_ in 0..minrow {
+            i = i_;
+            *term.line.offset(i as isize) = xrealloc(
+                term.line.offset(i as isize).cast(),
+                col as usize * size_of::<Glyph_>(),
+            )
+            .cast();
+            *term.alt.offset(i as isize) = xrealloc(
+                term.alt.offset(i as isize).cast(),
+                col as usize * size_of::<Glyph_>(),
+            )
+            .cast();
+        }
+
+        // allocate any new rows
+        for i_ in minrow..row {
+            i = i_;
+            *term.line.offset(i as isize) =
+                xmalloc(col as usize * size_of::<Glyph_>()).cast();
+            *term.alt.offset(i as isize) =
+                xmalloc(col as usize * size_of::<Glyph_>()).cast();
+        }
+
+        if col > term.col {
+            let mut bp = term.tabs.offset(term.col as isize);
+            memset(
+                bp.cast(),
+                0,
+                size_of_val(&*term.tabs) * (col - term.col) as usize,
+            );
+
+            // looping backwards over term.tabs, trimming zero values. emulating
+            // this C code:
+            //
+            // while (--bp > term.tabs && !*bp)
+            while !std::ptr::addr_eq(bp, term.tabs) && *bp == 0 {
+                bp = bp.offset(-1);
+            }
+
+            // now looping forwards again, emulating this C code:
+            //
+            // for (bp += tabspaces; bp < term.tabs + col; bp += tabspaces)
+            //     *bp = 1;
+            bp = bp.offset(tabspaces as isize);
+            while !std::ptr::addr_eq(bp, term.tabs.offset(col as isize)) {
+                *bp = 1;
+                bp = bp.offset(tabspaces as isize);
+            }
+        }
+
+        // update terminal size
+        term.col = col;
+        term.row = row;
+        // reset scrolling region
+        bindgen::tsetscroll(0, row - 1);
+        // make use of the LIMIT in tmoveto
+        tmoveto(term.c.x, term.c.y);
+        // clear both screens (it makes dirty all lines)
+        let c = term.c;
+        for _ in 0..2 {
+            if mincol < col && 0 < minrow {
+                tclearregion(mincol, 0, col - 1, minrow - 1);
+            }
+            if 0 < col && minrow < row {
+                tclearregion(0, minrow, col - 1, row - 1);
+            }
+            tswapscreen();
+            tcursor(CURSOR_LOAD);
+        }
+        term.c = c;
+    }
+}
+
+/// Call `malloc`, dying on any errors to avoid returning NULL.
+fn xmalloc(len: usize) -> *mut c_void {
+    unsafe {
+        let p = libc::malloc(len);
+
+        if p.is_null() {
+            let s = CStr::from_ptr(libc::strerror(*libc::__errno_location()));
+            die!("malloc: {}", s.to_str().unwrap_or("Unknown error"));
+        }
+
+        p
+    }
+}
+
+/// Call `realloc`, dying on any errors to avoid returning NULL.
+fn xrealloc(p: *mut c_void, len: usize) -> *mut c_void {
+    unsafe {
+        let p = libc::realloc(p, len);
+
+        if p.is_null() {
+            let s = CStr::from_ptr(libc::strerror(*libc::__errno_location()));
+            die!("realloc: {}", s.to_str().unwrap_or("Unknown error"));
+        }
+
+        p
+    }
 }
 
 // enum glyph_attribute

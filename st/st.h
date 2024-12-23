@@ -97,6 +97,7 @@ void treset(void);
 void tresize(int, int);
 void tsetdirt(int, int);
 void tsetdirtattr(int);
+void tsetscroll(int, int);
 void tswapscreen(void);
 void ttyhangup(void);
 void ttyresize(int, int);
