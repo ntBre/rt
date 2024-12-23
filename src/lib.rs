@@ -96,6 +96,7 @@ pub fn tnew(col: c_int, row: c_int) {
     }
 }
 
+// DUMMY
 pub fn tresize(col: c_int, row: c_int) {
     unsafe { bindgen::tresize(col, row) }
 }
@@ -279,6 +280,7 @@ pub fn tclearregion(
     }
 }
 
+// DUMMY
 fn selected(x: c_int, y: c_int) -> c_int {
     unsafe { bindgen::selected(x, y) }
 }
@@ -327,6 +329,7 @@ fn tfulldirt() {
     }
 }
 
+// DUMMY
 pub fn xinit(col: c_int, row: c_int) {
     unsafe { bindgen::xinit(col, row) }
 }
@@ -356,6 +359,7 @@ pub fn selinit() {
     }
 }
 
+// DUMMY
 pub fn run() {
     unsafe { bindgen::run() }
 }
