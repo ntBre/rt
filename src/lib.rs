@@ -4,8 +4,9 @@ use std::{
 };
 
 use libc::{getpid, memset, strtol, CLOCK_MONOTONIC};
-
-pub mod bindgen;
+use x11::xlib::{
+    False, GCGraphicsExposures, PropModeReplace, XA_CARDINAL, XA_STRING,
+};
 
 use bindgen::{
     borderpx, colorname, dc, defaultbg, defaultfg, font, mousebg, mousefg,
@@ -14,9 +15,64 @@ use bindgen::{
     TCursor, Term, XGCValues,
 };
 use win::MODE_NUMLOCK;
-use x11::xlib::{
-    False, GCGraphicsExposures, PropModeReplace, XA_CARDINAL, XA_STRING,
-};
+
+pub mod bindgen;
+pub mod win;
+pub mod x;
+
+pub use x::xsetenv;
+
+// enum glyph_attribute
+pub const ATTR_NULL: c_int = 0;
+pub const ATTR_BOLD: c_int = 1 << 0;
+pub const ATTR_FAINT: c_int = 1 << 1;
+pub const ATTR_ITALIC: c_int = 1 << 2;
+pub const ATTR_UNDERLINE: c_int = 1 << 3;
+pub const ATTR_BLINK: c_int = 1 << 4;
+pub const ATTR_REVERSE: c_int = 1 << 5;
+pub const ATTR_INVISIBLE: c_int = 1 << 6;
+pub const ATTR_STRUCK: c_int = 1 << 7;
+pub const ATTR_WRAP: c_int = 1 << 8;
+pub const ATTR_WIDE: c_int = 1 << 9;
+pub const ATTR_WDUMMY: c_int = 1 << 10;
+pub const ATTR_BOLD_FAINT: c_int = ATTR_BOLD | ATTR_FAINT;
+
+// enum selection_mode
+pub const SEL_IDLE: c_int = 0;
+pub const SEL_EMPTY: c_int = 1;
+pub const SEL_READY: c_int = 2;
+
+// enum selection_type
+pub const SEL_REGULAR: c_int = 1;
+pub const SEL_RECTANGULAR: c_int = 2;
+
+// enum term_mode
+pub const MODE_WRAP: c_int = 1 << 0;
+pub const MODE_INSERT: c_int = 1 << 1;
+pub const MODE_ALTSCREEN: c_int = 1 << 2;
+pub const MODE_CRLF: c_int = 1 << 3;
+pub const MODE_ECHO: c_int = 1 << 4;
+pub const MODE_PRINT: c_int = 1 << 5;
+pub const MODE_UTF8: c_int = 1 << 6;
+
+// enum cursor_movement
+// TODO these are definitely used like rust enums
+pub const CURSOR_SAVE: c_int = 0;
+pub const CURSOR_LOAD: c_int = 1;
+
+// enum cursor_state
+pub const CURSOR_DEFAULT: c_int = 0;
+pub const CURSOR_WRAPNEXT: c_int = 1;
+pub const CURSOR_ORIGIN: c_int = 2;
+
+// enum charset
+pub const CS_GRAPHIC0: c_int = 0;
+pub const CS_GRAPHIC1: c_int = 1;
+pub const CS_UK: c_int = 2;
+pub const CS_USA: c_int = 3;
+pub const CS_MULTI: c_int = 4;
+pub const CS_GER: c_int = 5;
+pub const CS_FI: c_int = 6;
 
 #[macro_export]
 macro_rules! die {
@@ -33,12 +89,6 @@ where
 {
     (a..=b).contains(&x)
 }
-
-pub mod x;
-
-pub mod win;
-
-pub use x::xsetenv;
 
 /// Initialize the global terminal in `term` to the given size and with default
 /// foreground and background colors.
@@ -225,58 +275,6 @@ fn xrealloc(p: *mut c_void, len: usize) -> *mut c_void {
         p
     }
 }
-
-// enum glyph_attribute
-pub const ATTR_NULL: c_int = 0;
-pub const ATTR_BOLD: c_int = 1 << 0;
-pub const ATTR_FAINT: c_int = 1 << 1;
-pub const ATTR_ITALIC: c_int = 1 << 2;
-pub const ATTR_UNDERLINE: c_int = 1 << 3;
-pub const ATTR_BLINK: c_int = 1 << 4;
-pub const ATTR_REVERSE: c_int = 1 << 5;
-pub const ATTR_INVISIBLE: c_int = 1 << 6;
-pub const ATTR_STRUCK: c_int = 1 << 7;
-pub const ATTR_WRAP: c_int = 1 << 8;
-pub const ATTR_WIDE: c_int = 1 << 9;
-pub const ATTR_WDUMMY: c_int = 1 << 10;
-pub const ATTR_BOLD_FAINT: c_int = ATTR_BOLD | ATTR_FAINT;
-
-// enum selection_mode
-pub const SEL_IDLE: c_int = 0;
-pub const SEL_EMPTY: c_int = 1;
-pub const SEL_READY: c_int = 2;
-
-// enum selection_type
-pub const SEL_REGULAR: c_int = 1;
-pub const SEL_RECTANGULAR: c_int = 2;
-
-// enum term_mode
-pub const MODE_WRAP: c_int = 1 << 0;
-pub const MODE_INSERT: c_int = 1 << 1;
-pub const MODE_ALTSCREEN: c_int = 1 << 2;
-pub const MODE_CRLF: c_int = 1 << 3;
-pub const MODE_ECHO: c_int = 1 << 4;
-pub const MODE_PRINT: c_int = 1 << 5;
-pub const MODE_UTF8: c_int = 1 << 6;
-
-// enum cursor_movement
-// TODO these are definitely used like rust enums
-pub const CURSOR_SAVE: c_int = 0;
-pub const CURSOR_LOAD: c_int = 1;
-
-// enum cursor_state
-pub const CURSOR_DEFAULT: c_int = 0;
-pub const CURSOR_WRAPNEXT: c_int = 1;
-pub const CURSOR_ORIGIN: c_int = 2;
-
-// enum charset
-pub const CS_GRAPHIC0: c_int = 0;
-pub const CS_GRAPHIC1: c_int = 1;
-pub const CS_UK: c_int = 2;
-pub const CS_USA: c_int = 3;
-pub const CS_MULTI: c_int = 4;
-pub const CS_GER: c_int = 5;
-pub const CS_FI: c_int = 6;
 
 pub fn treset() {
     unsafe {
