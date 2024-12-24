@@ -232,10 +232,15 @@ pub fn tresize(col: c_int, row: c_int) {
     }
 }
 
-// DUMMY
 fn tsetscroll(t: c_int, b: c_int) {
     unsafe {
-        bindgen::tsetscroll(t, b);
+        let mut t = t.clamp(0, term.row - 1);
+        let mut b = b.clamp(0, term.row - 1);
+        if t > b {
+            (t, b) = (b, t);
+        }
+        term.top = t;
+        term.bot = b;
     }
 }
 
