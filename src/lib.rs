@@ -1,9 +1,9 @@
 use std::{
-    ffi::{c_long, c_uchar, c_void, CStr},
+    ffi::{c_char, c_double, c_int, c_long, c_uchar, c_void, CStr},
     ptr::{null, null_mut},
 };
 
-use libc::{c_int, getpid, memset, setenv, strtol, CLOCK_MONOTONIC};
+use libc::{getpid, memset, setenv, strtol, CLOCK_MONOTONIC};
 
 pub mod bindgen {
     #![allow(non_upper_case_globals)]
@@ -52,8 +52,8 @@ pub mod bindgen {
 use bindgen::{
     borderpx, colorname, dc, defaultbg, defaultfg, font, mousebg, mousefg,
     mouseshape, opt_embed, opt_font, sel, selection_mode_SEL_IDLE, snprintf,
-    tabspaces, term, usedfont, win, xsel, xw, FcInit, GlyphFontSpec, Glyph_,
-    Line, TCursor, Term, XGCValues,
+    tabspaces, term, usedfont, win, xsel, xw, Display, FcInit, GlyphFontSpec,
+    Glyph_, Line, TCursor, Term, XGCValues,
 };
 use win::MODE_NUMLOCK;
 use x11::xlib::{
@@ -575,11 +575,11 @@ pub fn xinit(cols: c_int, rows: c_int) {
         } else {
             opt_font
         };
-        bindgen::xloadfonts(usedfont, 0.0);
+        xloadfonts(usedfont, 0.0);
 
         // colors
         xw.cmap = bindgen::XDefaultColormap(xw.dpy, xw.scr);
-        bindgen::xloadcols();
+        xloadcols();
 
         // adjust fixed window geometry
         win.w = 2 * borderpx + cols * win.cw;
@@ -701,13 +701,13 @@ pub fn xinit(cols: c_int, rows: c_int) {
         xw.draw = bindgen::XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
 
         // input methods
-        if bindgen::ximopen(xw.dpy) == 0 {
+        if ximopen(xw.dpy) == 0 {
             bindgen::XRegisterIMInstantiateCallback(
                 xw.dpy,
                 null_mut(),
                 null_mut(),
                 null_mut(),
-                Some(bindgen::ximinstantiate),
+                Some(ximinstantiate),
                 null_mut(),
             );
         }
@@ -781,8 +781,8 @@ pub fn xinit(cols: c_int, rows: c_int) {
         );
 
         win.mode = MODE_NUMLOCK;
-        bindgen::resettitle();
-        bindgen::xhints();
+        resettitle();
+        xhints();
         bindgen::XMapWindow(xw.dpy, xw.win);
         bindgen::XSync(xw.dpy, False);
 
@@ -795,6 +795,40 @@ pub fn xinit(cols: c_int, rows: c_int) {
             xsel.xtarget = XA_STRING;
         }
     }
+}
+
+// DUMMY
+fn resettitle() {
+    unsafe { bindgen::resettitle() }
+}
+
+// DUMMY
+fn xhints() {
+    unsafe { bindgen::xhints() }
+}
+
+// DUMMY
+fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
+    unsafe { bindgen::xloadfonts(fontstr, fontsize) }
+}
+
+// DUMMY
+fn xloadcols() {
+    unsafe { bindgen::xloadcols() }
+}
+
+// DUMMY
+fn ximopen(dpy: *mut Display) -> c_int {
+    unsafe { bindgen::ximopen(dpy) }
+}
+
+// DUMMY
+extern "C" fn ximinstantiate(
+    dpy: *mut Display,
+    client: bindgen::XPointer,
+    call: bindgen::XPointer,
+) {
+    unsafe { bindgen::ximinstantiate(dpy, client, call) }
 }
 
 /// Set the `WINDOWID` environment variable to `xw.win`.
