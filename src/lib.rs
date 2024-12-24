@@ -292,6 +292,10 @@ pub const SEL_IDLE: c_int = 0;
 pub const SEL_EMPTY: c_int = 1;
 pub const SEL_READY: c_int = 2;
 
+// enum selection_type
+pub const SEL_REGULAR: c_int = 1;
+pub const SEL_RECTANGULAR: c_int = 2;
+
 // enum term_mode
 pub const MODE_WRAP: c_int = 1 << 0;
 pub const MODE_INSERT: c_int = 1 << 1;
@@ -451,9 +455,26 @@ pub fn tclearregion(
     }
 }
 
-// DUMMY
+/// Return whether or not the character at `x`,`y` is selected.
+///
+/// TODO bool
 fn selected(x: c_int, y: c_int) -> c_int {
-    unsafe { bindgen::selected(x, y) }
+    unsafe {
+        if sel.mode == SEL_EMPTY
+            || sel.ob.x == -1
+            || sel.alt != is_set(MODE_ALTSCREEN) as c_int
+        {
+            return 0;
+        }
+        if sel.type_ == SEL_RECTANGULAR {
+            return (between(y, sel.nb.y, sel.ne.y)
+                && between(x, sel.nb.y, sel.ne.x)) as c_int;
+        }
+
+        (between(y, sel.nb.y, sel.ne.y)
+            && (y != sel.nb.y || x >= sel.nb.x)
+            && (y != sel.ne.y || x <= sel.ne.x)) as c_int
+    }
 }
 
 /// Clear the current selection.
