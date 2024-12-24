@@ -1,6 +1,9 @@
-use std::ffi::{c_long, c_void, CStr};
+use std::{
+    ffi::{c_long, c_uchar, c_void, CStr},
+    ptr::{null, null_mut},
+};
 
-use libc::{c_int, memset, setenv};
+use libc::{c_int, getpid, memset, setenv, strtol, CLOCK_MONOTONIC};
 
 pub mod bindgen {
     #![allow(non_upper_case_globals)]
@@ -47,8 +50,14 @@ pub mod bindgen {
 }
 
 use bindgen::{
-    defaultbg, defaultfg, sel, selection_mode_SEL_IDLE, snprintf, tabspaces,
-    term, xw, Glyph_, Line, TCursor, Term,
+    borderpx, colorname, dc, defaultbg, defaultfg, font, mousebg, mousefg,
+    mouseshape, opt_embed, opt_font, sel, selection_mode_SEL_IDLE, snprintf,
+    tabspaces, term, usedfont, win, xsel, xw, FcInit, GlyphFontSpec, Glyph_,
+    Line, TCursor, Term, XGCValues,
+};
+use win::MODE_NUMLOCK;
+use x11::xlib::{
+    False, GCGraphicsExposures, PropModeReplace, XA_CARDINAL, XA_STRING,
 };
 
 #[macro_export]
@@ -84,6 +93,32 @@ pub mod x {
 
         0
     }
+}
+
+pub mod win {
+    use std::ffi::c_int;
+
+    // enum win_mode
+    pub const MODE_VISIBLE: c_int = 1 << 0;
+    pub const MODE_FOCUSED: c_int = 1 << 1;
+    pub const MODE_APPKEYPAD: c_int = 1 << 2;
+    pub const MODE_MOUSEBTN: c_int = 1 << 3;
+    pub const MODE_MOUSEMOTION: c_int = 1 << 4;
+    pub const MODE_REVERSE: c_int = 1 << 5;
+    pub const MODE_KBDLOCK: c_int = 1 << 6;
+    pub const MODE_HIDE: c_int = 1 << 7;
+    pub const MODE_APPCURSOR: c_int = 1 << 8;
+    pub const MODE_MOUSESGR: c_int = 1 << 9;
+    pub const MODE_8BIT: c_int = 1 << 10;
+    pub const MODE_BLINK: c_int = 1 << 11;
+    pub const MODE_FBLINK: c_int = 1 << 12;
+    pub const MODE_FOCUS: c_int = 1 << 13;
+    pub const MODE_MOUSEX10: c_int = 1 << 14;
+    pub const MODE_MOUSEMANY: c_int = 1 << 15;
+    pub const MODE_BRCKTPASTE: c_int = 1 << 16;
+    pub const MODE_NUMLOCK: c_int = 1 << 17;
+    pub const MODE_MOUSE: c_int =
+        MODE_MOUSEBTN | MODE_MOUSEMOTION | MODE_MOUSEX10 | MODE_MOUSEMANY;
 }
 
 /// Initialize the global terminal in `term` to the given size and with default
@@ -521,9 +556,245 @@ fn tfulldirt() {
     }
 }
 
-// DUMMY
-pub fn xinit(col: c_int, row: c_int) {
-    unsafe { bindgen::xinit(col, row) }
+pub fn xinit(cols: c_int, rows: c_int) {
+    unsafe {
+        xw.dpy = bindgen::XOpenDisplay(null());
+        if xw.dpy.is_null() {
+            die!("can't open display");
+        }
+        xw.scr = bindgen::XDefaultScreen(xw.dpy);
+        xw.vis = bindgen::XDefaultVisual(xw.dpy, xw.scr);
+
+        // font
+        if FcInit() == 0 {
+            die!("could not init fontconfig");
+        }
+
+        usedfont = if opt_font.is_null() {
+            font.as_ptr() as *const i8
+        } else {
+            opt_font
+        };
+        bindgen::xloadfonts(usedfont, 0.0);
+
+        // colors
+        xw.cmap = bindgen::XDefaultColormap(xw.dpy, xw.scr);
+        bindgen::xloadcols();
+
+        // adjust fixed window geometry
+        win.w = 2 * borderpx + cols * win.cw;
+        win.h = 2 * borderpx + rows * win.ch;
+        if xw.gm & bindgen::XNegative as i32 != 0 {
+            xw.l += bindgen::XDisplayWidth(xw.dpy, xw.scr) - win.w - 2;
+        }
+        if xw.gm & bindgen::YNegative as i32 != 0 {
+            xw.t += bindgen::XDisplayHeight(xw.dpy, xw.scr) - win.h - 2;
+        }
+
+        // Events
+        xw.attrs.background_pixel = (*dc.col.add(defaultbg as usize)).pixel;
+        xw.attrs.border_pixel = (*dc.col.add(defaultbg as usize)).pixel;
+        xw.attrs.bit_gravity = bindgen::NorthWestGravity as i32;
+        xw.attrs.event_mask = (bindgen::FocusChangeMask
+            | bindgen::KeyPressMask
+            | bindgen::KeyReleaseMask
+            | bindgen::ExposureMask
+            | bindgen::VisibilityChangeMask
+            | bindgen::StructureNotifyMask
+            | bindgen::ButtonMotionMask
+            | bindgen::ButtonPressMask
+            | bindgen::ButtonReleaseMask) as i64;
+        xw.attrs.colormap = xw.cmap;
+
+        let root = bindgen::XRootWindow(xw.dpy, xw.scr);
+        let mut parent;
+        if !opt_embed.is_null() {
+            parent = strtol(opt_embed, null_mut(), 0);
+            if parent == 0 {
+                parent = root as i64;
+            }
+        } else {
+            parent = root as i64;
+        }
+        xw.win = bindgen::XCreateWindow(
+            xw.dpy,
+            root,
+            xw.l,
+            xw.t,
+            win.w as u32,
+            win.h as u32,
+            0,
+            bindgen::XDefaultDepth(xw.dpy, xw.scr),
+            bindgen::InputOutput,
+            xw.vis,
+            (bindgen::CWBackPixel
+                | bindgen::CWBorderPixel
+                | bindgen::CWBitGravity
+                | bindgen::CWEventMask
+                | bindgen::CWColormap) as u64,
+            &raw mut xw.attrs,
+        );
+
+        if parent != root as i64 {
+            bindgen::XReparentWindow(xw.dpy, xw.win, parent as u64, xw.l, xw.t);
+        }
+
+        let mut gcvalues = XGCValues {
+            function: 0,
+            plane_mask: 0,
+            foreground: 0,
+            background: 0,
+            line_width: 0,
+            line_style: 0,
+            cap_style: 0,
+            join_style: 0,
+            fill_style: 0,
+            fill_rule: 0,
+            arc_mode: 0,
+            tile: 0,
+            stipple: 0,
+            ts_x_origin: 0,
+            ts_y_origin: 0,
+            font: 0,
+            subwindow_mode: 0,
+            graphics_exposures: 0,
+            clip_x_origin: 0,
+            clip_y_origin: 0,
+            clip_mask: 0,
+            dash_offset: 0,
+            dashes: 0,
+        };
+        gcvalues.graphics_exposures = False;
+        dc.gc = bindgen::XCreateGC(
+            xw.dpy,
+            xw.win,
+            GCGraphicsExposures as u64,
+            &mut gcvalues,
+        );
+        xw.buf = bindgen::XCreatePixmap(
+            xw.dpy,
+            xw.win,
+            win.w as u32,
+            win.h as u32,
+            bindgen::XDefaultDepth(xw.dpy, xw.scr) as u32,
+        );
+
+        bindgen::XSetForeground(
+            xw.dpy,
+            dc.gc,
+            (*dc.col.add(defaultbg as usize)).pixel,
+        );
+        bindgen::XFillRectangle(
+            xw.dpy,
+            xw.buf,
+            dc.gc,
+            0,
+            0,
+            win.w as u32,
+            win.h as u32,
+        );
+
+        // font spec buffer
+        xw.specbuf = xmalloc(cols as usize * size_of::<GlyphFontSpec>()).cast();
+
+        // Xft rendering context
+        xw.draw = bindgen::XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
+
+        // input methods
+        if bindgen::ximopen(xw.dpy) == 0 {
+            bindgen::XRegisterIMInstantiateCallback(
+                xw.dpy,
+                null_mut(),
+                null_mut(),
+                null_mut(),
+                Some(bindgen::ximinstantiate),
+                null_mut(),
+            );
+        }
+
+        // white cursor, black outline
+        let cursor = bindgen::XCreateFontCursor(xw.dpy, mouseshape);
+        bindgen::XDefineCursor(xw.dpy, xw.win, cursor);
+
+        let mut xmousefg = bindgen::XColor {
+            pixel: 0,
+            red: 0,
+            green: 0,
+            blue: 0,
+            flags: 0,
+            pad: 0,
+        };
+        let mut xmousebg = bindgen::XColor {
+            pixel: 0,
+            red: 0,
+            green: 0,
+            blue: 0,
+            flags: 0,
+            pad: 0,
+        };
+        if bindgen::XParseColor(
+            xw.dpy,
+            xw.cmap,
+            colorname[mousefg as usize],
+            &mut xmousefg,
+        ) == 0
+        {
+            xmousefg.red = 0xffff;
+            xmousefg.green = 0xffff;
+            xmousefg.blue = 0xffff;
+        }
+        if bindgen::XParseColor(
+            xw.dpy,
+            xw.cmap,
+            colorname[mousebg as usize],
+            &mut xmousebg,
+        ) == 0
+        {
+            xmousebg.red = 0x0000;
+            xmousebg.green = 0x0000;
+            xmousebg.blue = 0x0000;
+        }
+
+        bindgen::XRecolorCursor(xw.dpy, cursor, &mut xmousefg, &mut xmousebg);
+
+        xw.xembed = bindgen::XInternAtom(xw.dpy, c"_XEMBED".as_ptr(), False);
+        xw.wmdeletewin =
+            bindgen::XInternAtom(xw.dpy, c"WM_DELETE_WINDOW".as_ptr(), False);
+        xw.netwmname =
+            bindgen::XInternAtom(xw.dpy, c"_NET_WM_NAME".as_ptr(), False);
+        xw.netwmiconname =
+            bindgen::XInternAtom(xw.dpy, c"_NET_WM_ICON_NAME".as_ptr(), False);
+        bindgen::XSetWMProtocols(xw.dpy, xw.win, &raw mut xw.wmdeletewin, 1);
+
+        xw.netwmpid =
+            bindgen::XInternAtom(xw.dpy, c"_NET_WM_PID".as_ptr(), False);
+        let thispid = getpid();
+        bindgen::XChangeProperty(
+            xw.dpy,
+            xw.win,
+            xw.netwmpid,
+            XA_CARDINAL,
+            32,
+            PropModeReplace,
+            &raw const thispid as *const c_uchar,
+            1,
+        );
+
+        win.mode = MODE_NUMLOCK;
+        bindgen::resettitle();
+        bindgen::xhints();
+        bindgen::XMapWindow(xw.dpy, xw.win);
+        bindgen::XSync(xw.dpy, False);
+
+        bindgen::clock_gettime(CLOCK_MONOTONIC, &raw mut xsel.tclick1);
+        bindgen::clock_gettime(CLOCK_MONOTONIC, &raw mut xsel.tclick2);
+        xsel.primary = null_mut();
+        xsel.clipboard = null_mut();
+        xsel.xtarget = bindgen::XInternAtom(xw.dpy, c"UTF8_STRING".as_ptr(), 0);
+        if xsel.xtarget == bindgen::None as u64 {
+            xsel.xtarget = XA_STRING;
+        }
+    }
 }
 
 /// Set the `WINDOWID` environment variable to `xw.win`.

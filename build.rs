@@ -14,6 +14,7 @@ fn main() {
     println!("cargo:rustc-link-arg=-lst");
     println!("cargo:rustc-link-arg=-lfontconfig");
     println!("cargo:rustc-link-arg=-lX11");
+    println!("cargo:rustc-link-arg=-lXft");
 
     let st = Path::new("st").canonicalize().unwrap();
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", st.display());

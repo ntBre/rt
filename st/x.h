@@ -125,17 +125,17 @@ static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
 static void xdrawglyph(Glyph, int, int);
 static void xclear(int, int, int, int);
 static int xgeommasktogravity(int);
-static int ximopen(Display *);
-static void ximinstantiate(Display *, XPointer, XPointer);
+int ximopen(Display *);
+void ximinstantiate(Display *, XPointer, XPointer);
 static void ximdestroy(XIM, XPointer, XPointer);
 static int xicdestroy(XIC, XPointer, XPointer);
 void xinit(int, int);
 static void cresize(int, int);
 static void xresize(int, int);
-static void xhints(void);
+void xhints(void);
 static int xloadcolor(int, const char *, Color *);
 static int xloadfont(Font *, FcPattern *);
-static void xloadfonts(const char *, double);
+void xloadfonts(const char *, double);
 static void xunloadfont(Font *);
 static void xunloadfonts(void);
 void xsetenv(void);
@@ -195,9 +195,9 @@ static void (*handler[LASTEvent])(XEvent *) = {
 };
 
 /* Globals */
-static DC dc;
+DC dc;
 XWindow xw;
-static XSelection xsel;
+XSelection xsel;
 TermWindow win;
 
 /* Font Ring Cache */
@@ -218,14 +218,14 @@ typedef struct {
 static Fontcache *frc = NULL;
 static int frclen = 0;
 static int frccap = 0;
-static char *usedfont = NULL;
+const char *usedfont = NULL;
 static double usedfontsize = 0;
 static double defaultfontsize = 0;
 
 static char *opt_class = NULL;
 static char **opt_cmd  = NULL;
-static char *opt_embed = NULL;
-static char *opt_font  = NULL;
+char *opt_embed = NULL;
+char *opt_font  = NULL;
 static char *opt_io    = NULL;
 static char *opt_line  = NULL;
 static char *opt_name  = NULL;
