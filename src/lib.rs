@@ -1,9 +1,9 @@
 use std::{
-    ffi::{c_char, c_double, c_int, c_long, c_uchar, c_void, CStr},
+    ffi::{c_int, c_uchar, c_void, CStr},
     ptr::{null, null_mut},
 };
 
-use libc::{getpid, memset, setenv, strtol, CLOCK_MONOTONIC};
+use libc::{getpid, memset, strtol, CLOCK_MONOTONIC};
 
 pub mod bindgen {
     #![allow(non_upper_case_globals)]
@@ -51,9 +51,9 @@ pub mod bindgen {
 
 use bindgen::{
     borderpx, colorname, dc, defaultbg, defaultfg, font, mousebg, mousefg,
-    mouseshape, opt_embed, opt_font, sel, selection_mode_SEL_IDLE, snprintf,
-    tabspaces, term, usedfont, win, xsel, xw, Display, FcInit, GlyphFontSpec,
-    Glyph_, Line, TCursor, Term, XGCValues,
+    mouseshape, opt_embed, opt_font, sel, selection_mode_SEL_IDLE, tabspaces,
+    term, usedfont, win, xsel, xw, FcInit, GlyphFontSpec, Glyph_, Line,
+    TCursor, Term, XGCValues,
 };
 use win::MODE_NUMLOCK;
 use x11::xlib::{
@@ -77,9 +77,12 @@ where
 }
 
 pub mod x {
-    use std::ffi::c_int;
+    use std::ffi::{c_char, c_double, c_int, c_long};
 
-    use crate::{between, bindgen::win};
+    use crate::{
+        between,
+        bindgen::{self, win, xw},
+    };
 
     // NOTE returns bool?
     pub fn xsetcursor(cursor: c_int) -> c_int {
@@ -92,6 +95,51 @@ pub mod x {
         }
 
         0
+    }
+
+    // DUMMY
+    pub fn xhints() {
+        unsafe { bindgen::xhints() }
+    }
+
+    // DUMMY
+    pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
+        unsafe { bindgen::xloadfonts(fontstr, fontsize) }
+    }
+
+    // DUMMY
+    pub(crate) fn xloadcols() {
+        unsafe { bindgen::xloadcols() }
+    }
+
+    // DUMMY
+    pub(crate) fn ximopen(dpy: *mut bindgen::Display) -> c_int {
+        unsafe { bindgen::ximopen(dpy) }
+    }
+
+    // DUMMY
+    pub(crate) extern "C" fn ximinstantiate(
+        dpy: *mut bindgen::Display,
+        client: bindgen::XPointer,
+        call: bindgen::XPointer,
+    ) {
+        unsafe { bindgen::ximinstantiate(dpy, client, call) }
+    }
+
+    /// Set the `WINDOWID` environment variable to `xw.win`.
+    pub fn xsetenv() {
+        unsafe {
+            // TODO this can probably just be:
+            // std::env::set_var("WINDOWID", xw.win.to_string());
+            let mut buf = [0; c_long::BITS as usize + 1];
+            libc::snprintf(
+                buf.as_mut_ptr(),
+                size_of_val(&buf),
+                c"%lu".as_ptr(),
+                xw.win,
+            );
+            libc::setenv(c"WINDOWID".as_ptr(), buf.as_ptr(), 1);
+        }
     }
 }
 
@@ -120,6 +168,8 @@ pub mod win {
     pub const MODE_MOUSE: c_int =
         MODE_MOUSEBTN | MODE_MOUSEMOTION | MODE_MOUSEX10 | MODE_MOUSEMANY;
 }
+
+pub use x::xsetenv;
 
 /// Initialize the global terminal in `term` to the given size and with default
 /// foreground and background colors.
@@ -575,11 +625,11 @@ pub fn xinit(cols: c_int, rows: c_int) {
         } else {
             opt_font
         };
-        xloadfonts(usedfont, 0.0);
+        x::xloadfonts(usedfont, 0.0);
 
         // colors
         xw.cmap = bindgen::XDefaultColormap(xw.dpy, xw.scr);
-        xloadcols();
+        x::xloadcols();
 
         // adjust fixed window geometry
         win.w = 2 * borderpx + cols * win.cw;
@@ -701,13 +751,13 @@ pub fn xinit(cols: c_int, rows: c_int) {
         xw.draw = bindgen::XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
 
         // input methods
-        if ximopen(xw.dpy) == 0 {
+        if x::ximopen(xw.dpy) == 0 {
             bindgen::XRegisterIMInstantiateCallback(
                 xw.dpy,
                 null_mut(),
                 null_mut(),
                 null_mut(),
-                Some(ximinstantiate),
+                Some(x::ximinstantiate),
                 null_mut(),
             );
         }
@@ -782,7 +832,7 @@ pub fn xinit(cols: c_int, rows: c_int) {
 
         win.mode = MODE_NUMLOCK;
         resettitle();
-        xhints();
+        x::xhints();
         bindgen::XMapWindow(xw.dpy, xw.win);
         bindgen::XSync(xw.dpy, False);
 
@@ -797,56 +847,6 @@ pub fn xinit(cols: c_int, rows: c_int) {
     }
 }
 
-// DUMMY
-fn resettitle() {
-    unsafe { bindgen::resettitle() }
-}
-
-// DUMMY
-fn xhints() {
-    unsafe { bindgen::xhints() }
-}
-
-// DUMMY
-fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
-    unsafe { bindgen::xloadfonts(fontstr, fontsize) }
-}
-
-// DUMMY
-fn xloadcols() {
-    unsafe { bindgen::xloadcols() }
-}
-
-// DUMMY
-fn ximopen(dpy: *mut Display) -> c_int {
-    unsafe { bindgen::ximopen(dpy) }
-}
-
-// DUMMY
-extern "C" fn ximinstantiate(
-    dpy: *mut Display,
-    client: bindgen::XPointer,
-    call: bindgen::XPointer,
-) {
-    unsafe { bindgen::ximinstantiate(dpy, client, call) }
-}
-
-/// Set the `WINDOWID` environment variable to `xw.win`.
-pub fn xsetenv() {
-    unsafe {
-        // TODO this can probably just be:
-        // std::env::set_var("WINDOWID", xw.win.to_string());
-        let mut buf = [0; c_long::BITS as usize + 1];
-        snprintf(
-            buf.as_mut_ptr(),
-            size_of_val(&buf) as u64,
-            c"%lu".as_ptr(),
-            xw.win,
-        );
-        setenv(c"WINDOWID".as_ptr(), buf.as_ptr(), 1);
-    }
-}
-
 /// Initialize the global selection in `sel`.
 pub fn selinit() {
     unsafe {
@@ -854,6 +854,11 @@ pub fn selinit() {
         sel.snap = 0;
         sel.ob.x = -1;
     }
+}
+
+// DUMMY
+pub fn resettitle() {
+    unsafe { bindgen::resettitle() }
 }
 
 // DUMMY
