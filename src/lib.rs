@@ -10,9 +10,8 @@ use x11::xlib::{
 
 use bindgen::{
     borderpx, colorname, dc, defaultbg, defaultfg, font, mousebg, mousefg,
-    mouseshape, opt_embed, opt_font, sel, selection_mode_SEL_IDLE, tabspaces,
-    term, usedfont, win, xsel, xw, FcInit, GlyphFontSpec, Glyph_, Line,
-    TCursor, Term, XGCValues,
+    mouseshape, opt_embed, opt_font, sel, tabspaces, term, usedfont, win, xsel,
+    xw, FcInit, GlyphFontSpec, Glyph_, Line, TCursor, Term, XGCValues,
 };
 use win::MODE_NUMLOCK;
 
@@ -717,7 +716,7 @@ pub fn xinit(cols: c_int, rows: c_int) {
 /// Initialize the global selection in `sel`.
 pub fn selinit() {
     unsafe {
-        sel.mode = selection_mode_SEL_IDLE as i32;
+        sel.mode = SEL_IDLE;
         sel.snap = 0;
         sel.ob.x = -1;
     }
