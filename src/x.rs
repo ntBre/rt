@@ -1,8 +1,13 @@
-use std::ffi::{c_char, c_double, c_int, c_long};
+use std::{
+    ffi::{c_char, c_double, c_int, c_long},
+    mem::MaybeUninit,
+};
+
+use x11::xlib::{Success, XUTF8StringStyle};
 
 use crate::{
     between,
-    bindgen::{self, win, xw},
+    bindgen::{self, opt_title, win, xw},
 };
 
 // NOTE returns bool?
@@ -45,6 +50,38 @@ pub(crate) extern "C" fn ximinstantiate(
     call: bindgen::XPointer,
 ) {
     unsafe { bindgen::ximinstantiate(dpy, client, call) }
+}
+
+pub(crate) fn xsettitle(mut p: *mut c_char) {
+    unsafe {
+        p = if p.is_null() { opt_title } else { p };
+
+        if *p == b'\0' as c_char {
+            p = opt_title;
+        }
+
+        let mut prop = MaybeUninit::uninit();
+        if bindgen::Xutf8TextListToTextProperty(
+            xw.dpy,
+            &raw mut p,
+            1,
+            XUTF8StringStyle as u32,
+            prop.as_mut_ptr(),
+        ) != Success as i32
+        {
+            return;
+        }
+
+        bindgen::XSetWMName(xw.dpy, xw.win, prop.as_mut_ptr());
+        bindgen::XSetTextProperty(
+            xw.dpy,
+            xw.win,
+            prop.as_mut_ptr(),
+            xw.netwmname,
+        );
+        let prop = prop.assume_init();
+        bindgen::XFree(prop.value.cast());
+    }
 }
 
 /// Set the `WINDOWID` environment variable to `xw.win`.

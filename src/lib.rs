@@ -723,9 +723,8 @@ pub fn selinit() {
     }
 }
 
-// DUMMY
 pub fn resettitle() {
-    unsafe { bindgen::resettitle() }
+    x::xsettitle(null_mut());
 }
 
 // DUMMY
