@@ -16,11 +16,12 @@ use crate::{
     bindgen::{
         self, borderpx, chscale, colorname, cwscale, dc, defaultfontsize,
         opt_class, opt_name, opt_title, termname, usedfontsize, win, xw, Color,
-        FcChar8, FcNameParse, FcPatternAddDouble, FcPatternAddInteger,
-        FcPatternDel, FcPatternDestroy, FcPatternGetDouble, XAllocSizeHints,
-        XClassHint, XCreateIC, XICCallback, XIMCallback, XNDestroyCallback,
-        XPointer, XRenderColor, XSetIMValues, XVaCreateNestedList, XWMHints,
-        XftColorAllocName, XftColorAllocValue, XftColorFree, XftXlfdParse,
+        FcChar8, FcNameParse, FcPattern, FcPatternAddDouble,
+        FcPatternAddInteger, FcPatternDel, FcPatternDestroy,
+        FcPatternGetDouble, Font_, XAllocSizeHints, XClassHint, XCreateIC,
+        XICCallback, XIMCallback, XNDestroyCallback, XPointer, XRenderColor,
+        XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
+        XftColorAllocValue, XftColorFree, XftXlfdParse,
         _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
         FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
@@ -160,7 +161,7 @@ pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
             defaultfontsize = usedfontsize;
         }
 
-        if bindgen::xloadfont(&raw mut dc.font, pattern) != 0 {
+        if xloadfont(&raw mut dc.font, pattern) != 0 {
             die!("can't open font {:?}", CStr::from_ptr(fontstr));
         }
 
@@ -187,7 +188,7 @@ pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
             FC_SLANT.as_ptr().cast(),
             FC_SLANT_ITALIC as i32,
         );
-        if bindgen::xloadfont(&raw mut dc.ifont, pattern) != 0 {
+        if xloadfont(&raw mut dc.ifont, pattern) != 0 {
             die!("can't open font {:?}", fontstr);
         }
 
@@ -197,7 +198,7 @@ pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
             FC_WEIGHT.as_ptr().cast(),
             FC_WEIGHT_BOLD as i32,
         );
-        if bindgen::xloadfont(&raw mut dc.ibfont, pattern) != 0 {
+        if xloadfont(&raw mut dc.ibfont, pattern) != 0 {
             die!("can't open font {:?}", fontstr);
         }
 
@@ -207,12 +208,17 @@ pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
             FC_SLANT.as_ptr().cast(),
             FC_SLANT_ROMAN as i32,
         );
-        if bindgen::xloadfont(&raw mut dc.bfont, pattern) != 0 {
+        if xloadfont(&raw mut dc.bfont, pattern) != 0 {
             die!("can't open font {:?}", fontstr);
         }
 
         FcPatternDestroy(pattern);
     }
+}
+
+// DUMMY
+fn xloadfont(f: *mut Font_, pattern: *mut FcPattern) -> c_int {
+    unsafe { bindgen::xloadfont(f, pattern) }
 }
 
 /// Load colors.
