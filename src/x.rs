@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_char, c_double, c_int, c_long, c_void},
+    ffi::{c_char, c_double, c_int, c_long, c_void, CStr},
     mem::MaybeUninit,
     ptr::null_mut,
 };
@@ -14,11 +14,12 @@ use x11::xlib::{
 use crate::{
     between,
     bindgen::{
-        self, borderpx, opt_class, opt_name, opt_title, termname, win, xw,
-        XAllocSizeHints, XClassHint, XCreateIC, XICCallback, XIMCallback,
-        XNDestroyCallback, XPointer, XSetIMValues, XVaCreateNestedList,
-        XWMHints, XIC, XIM,
+        self, borderpx, colorname, dc, opt_class, opt_name, opt_title,
+        termname, win, xw, Color, XAllocSizeHints, XClassHint, XCreateIC,
+        XICCallback, XIMCallback, XNDestroyCallback, XPointer, XSetIMValues,
+        XVaCreateNestedList, XWMHints, XftColorFree, XIC, XIM,
     },
+    die, len, xmalloc,
 };
 
 // NOTE returns bool?
@@ -107,9 +108,38 @@ pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
     unsafe { bindgen::xloadfonts(fontstr, fontsize) }
 }
 
-// DUMMY
+/// Load colors.
 pub(crate) fn xloadcols() {
-    unsafe { bindgen::xloadcols() }
+    unsafe {
+        // TODO LazyLock
+        static mut LOADED: bool = false;
+
+        if LOADED {
+            let mut cp = dc.col;
+            while cp < dc.col.add(dc.collen) {
+                XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
+                cp = cp.offset(1);
+            }
+        } else {
+            dc.collen = std::cmp::max(len(&raw const colorname), 256);
+            dc.col = xmalloc(dc.collen * size_of::<Color>()).cast();
+        }
+
+        // TODO fix this, pretty hard with dc being a mutable static, though.
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..dc.collen {
+            if bindgen::xloadcolor(i as c_int, null_mut(), dc.col.add(i)) == 0 {
+                if !colorname[i].is_null() {
+                    die!(
+                        "could not allocate color {:?}",
+                        CStr::from_ptr(colorname[i])
+                    );
+                } else {
+                    die!("could not allocate color {i}");
+                }
+            }
+        }
+    }
 }
 
 pub(crate) fn ximopen(_dpy: *mut bindgen::Display) -> c_int {

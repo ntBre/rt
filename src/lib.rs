@@ -89,6 +89,13 @@ where
     (a..=b).contains(&x)
 }
 
+/// Return the length of a raw slice without using slice::len, which requires a
+/// & reference.
+#[inline]
+pub(crate) fn len<T>(arr: *const [T]) -> usize {
+    unsafe { size_of_val(&*arr) / size_of::<T>() }
+}
+
 /// Initialize the global terminal in `term` to the given size and with default
 /// foreground and background colors.
 pub fn tnew(col: c_int, row: c_int) {

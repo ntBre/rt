@@ -133,7 +133,7 @@ void xinit(int, int);
 static void cresize(int, int);
 static void xresize(int, int);
 void xhints(void);
-static int xloadcolor(int, const char *, Color *);
+int xloadcolor(int, const char *, Color *);
 static int xloadfont(Font *, FcPattern *);
 void xloadfonts(const char *, double);
 static void xunloadfont(Font *);
