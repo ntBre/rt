@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_char, c_double, c_int, c_long, c_void, CStr},
+    ffi::{c_char, c_double, c_int, c_long, c_ushort, c_void, CStr},
     mem::MaybeUninit,
     ptr::null_mut,
 };
@@ -16,8 +16,9 @@ use crate::{
     bindgen::{
         self, borderpx, colorname, dc, opt_class, opt_name, opt_title,
         termname, win, xw, Color, XAllocSizeHints, XClassHint, XCreateIC,
-        XICCallback, XIMCallback, XNDestroyCallback, XPointer, XSetIMValues,
-        XVaCreateNestedList, XWMHints, XftColorFree, XIC, XIM,
+        XICCallback, XIMCallback, XNDestroyCallback, XPointer, XRenderColor,
+        XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
+        XftColorAllocValue, XftColorFree, XIC, XIM,
     },
     die, len, xmalloc,
 };
@@ -142,9 +143,47 @@ pub(crate) fn xloadcols() {
     }
 }
 
-// DUMMY
-fn xloadcolor(i: c_int, name: *const c_char, ncolor: *mut Color) -> c_int {
-    unsafe { bindgen::xloadcolor(i, name, ncolor) }
+fn xloadcolor(i: c_int, mut name: *const c_char, ncolor: *mut Color) -> c_int {
+    unsafe {
+        let mut color =
+            XRenderColor { red: 0, green: 0, blue: 0, alpha: 0xffff };
+
+        if name.is_null() {
+            if between(i, 16, 255) {
+                // 256 color
+                if i < 6 * 6 * 6 + 16 {
+                    // same colors as xterm
+                    color.red = sixd_to_16bit(((i - 16) / 36) % 6);
+                    color.green = sixd_to_16bit(((i - 16) / 6) % 6);
+                    color.blue = sixd_to_16bit((i - 16) % 6);
+                } else {
+                    // greyscale
+                    color.red = 0x0808 + 0x0a0a * (i as u16 - (6 * 6 * 6 + 16));
+                    color.green = color.red;
+                    color.blue = color.red;
+                }
+                return XftColorAllocValue(
+                    xw.dpy,
+                    xw.vis,
+                    xw.cmap,
+                    &raw mut color,
+                    ncolor,
+                );
+            } else {
+                name = colorname[i as usize];
+            }
+        }
+
+        XftColorAllocName(xw.dpy, xw.vis, xw.cmap, name, ncolor)
+    }
+}
+
+fn sixd_to_16bit(x: c_int) -> c_ushort {
+    if x == 0 {
+        0
+    } else {
+        (0x3737 + 0x2828 * x) as c_ushort
+    }
 }
 
 pub(crate) fn ximopen(_dpy: *mut bindgen::Display) -> c_int {
