@@ -222,13 +222,13 @@ const char *usedfont = NULL;
 static double usedfontsize = 0;
 static double defaultfontsize = 0;
 
-static char *opt_class = NULL;
+char *opt_class = NULL;
 static char **opt_cmd  = NULL;
 char *opt_embed = NULL;
 char *opt_font  = NULL;
 static char *opt_io    = NULL;
 static char *opt_line  = NULL;
-static char *opt_name  = NULL;
+char *opt_name  = NULL;
 char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */

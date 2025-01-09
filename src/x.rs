@@ -1,13 +1,22 @@
 use std::{
     ffi::{c_char, c_double, c_int, c_long},
     mem::MaybeUninit,
+    ptr::null_mut,
 };
 
-use x11::xlib::{Success, XUTF8StringStyle};
+use x11::xlib::{
+    InputHint, NorthEastGravity, NorthWestGravity, PBaseSize, PMaxSize,
+    PMinSize, PResizeInc, PSize, PWinGravity, SouthEastGravity,
+    SouthWestGravity, Success, USPosition, XNegative, XUTF8StringStyle, XValue,
+    YNegative, YValue,
+};
 
 use crate::{
     between,
-    bindgen::{self, opt_title, win, xw},
+    bindgen::{
+        self, borderpx, opt_class, opt_name, opt_title, termname, win, xw,
+        XAllocSizeHints, XClassHint, XWMHints,
+    },
 };
 
 // NOTE returns bool?
@@ -23,9 +32,72 @@ pub fn xsetcursor(cursor: c_int) -> c_int {
     0
 }
 
-// DUMMY
 pub fn xhints() {
-    unsafe { bindgen::xhints() }
+    unsafe {
+        let mut class = XClassHint {
+            res_name: if !opt_name.is_null() { opt_name } else { termname },
+            res_class: if !opt_class.is_null() { opt_class } else { termname },
+        };
+        let mut wm = XWMHints {
+            flags: InputHint,
+            input: 1,
+            initial_state: 0,
+            icon_pixmap: 0,
+            icon_window: 0,
+            icon_x: 0,
+            icon_y: 0,
+            icon_mask: 0,
+            window_group: 0,
+        };
+
+        let sizeh = XAllocSizeHints();
+        (*sizeh).flags = PSize | PResizeInc | PBaseSize | PMinSize;
+        (*sizeh).height = win.h;
+        (*sizeh).width = win.w;
+        (*sizeh).height_inc = win.ch;
+        (*sizeh).width_inc = win.cw;
+        (*sizeh).base_height = 2 * borderpx;
+        (*sizeh).base_width = 2 * borderpx;
+        (*sizeh).min_height = win.ch + 2 * borderpx;
+        (*sizeh).min_width = win.cw + 2 * borderpx;
+
+        if xw.isfixed != 0 {
+            (*sizeh).flags |= PMaxSize;
+            (*sizeh).min_width = win.w;
+            (*sizeh).max_width = win.w;
+            (*sizeh).min_height = win.h;
+            (*sizeh).max_height = win.h;
+        }
+        if (xw.gm & (XValue | YValue)) != 0 {
+            (*sizeh).flags |= USPosition | PWinGravity;
+            (*sizeh).x = xw.l;
+            (*sizeh).y = xw.t;
+            (*sizeh).win_gravity = xgeommasktogravity(xw.gm);
+        }
+
+        bindgen::XSetWMProperties(
+            xw.dpy,
+            xw.win,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            0,
+            sizeh,
+            &raw mut wm,
+            &raw mut class,
+        );
+        bindgen::XFree(sizeh.cast());
+    }
+}
+
+fn xgeommasktogravity(mask: c_int) -> c_int {
+    #[allow(non_upper_case_globals)]
+    match mask & (XNegative | YNegative) {
+        0 => NorthWestGravity,
+        XNegative => NorthEastGravity,
+        YNegative => SouthWestGravity,
+        _ => SouthEastGravity,
+    }
 }
 
 // DUMMY
