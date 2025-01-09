@@ -128,7 +128,7 @@ pub(crate) fn xloadcols() {
         // TODO fix this, pretty hard with dc being a mutable static, though.
         #[allow(clippy::needless_range_loop)]
         for i in 0..dc.collen {
-            if bindgen::xloadcolor(i as c_int, null_mut(), dc.col.add(i)) == 0 {
+            if xloadcolor(i as c_int, null_mut(), dc.col.add(i)) == 0 {
                 if !colorname[i].is_null() {
                     die!(
                         "could not allocate color {:?}",
@@ -140,6 +140,11 @@ pub(crate) fn xloadcols() {
             }
         }
     }
+}
+
+// DUMMY
+fn xloadcolor(i: c_int, name: *const c_char, ncolor: *mut Color) -> c_int {
+    unsafe { bindgen::xloadcolor(i, name, ncolor) }
 }
 
 pub(crate) fn ximopen(_dpy: *mut bindgen::Display) -> c_int {
