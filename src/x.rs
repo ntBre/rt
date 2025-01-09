@@ -5,7 +5,7 @@ use std::{
 };
 
 use x11::xlib::{
-    InputHint, NorthEastGravity, NorthWestGravity, PBaseSize, PMaxSize,
+    False, InputHint, NorthEastGravity, NorthWestGravity, PBaseSize, PMaxSize,
     PMinSize, PResizeInc, PSize, PWinGravity, SouthEastGravity,
     SouthWestGravity, Success, USPosition, XIMPreeditNothing, XIMStatusNothing,
     XNegative, XUTF8StringStyle, XValue, YNegative, YValue,
@@ -14,11 +14,15 @@ use x11::xlib::{
 use crate::{
     between,
     bindgen::{
-        self, borderpx, colorname, dc, opt_class, opt_name, opt_title,
-        termname, win, xw, Color, XAllocSizeHints, XClassHint, XCreateIC,
-        XICCallback, XIMCallback, XNDestroyCallback, XPointer, XRenderColor,
-        XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
-        XftColorAllocValue, XftColorFree, XIC, XIM,
+        self, borderpx, chscale, colorname, cwscale, dc, defaultfontsize,
+        opt_class, opt_name, opt_title, termname, usedfontsize, win, xw, Color,
+        FcChar8, FcNameParse, FcPatternAddDouble, FcPatternAddInteger,
+        FcPatternDel, FcPatternDestroy, FcPatternGetDouble, XAllocSizeHints,
+        XClassHint, XCreateIC, XICCallback, XIMCallback, XNDestroyCallback,
+        XPointer, XRenderColor, XSetIMValues, XVaCreateNestedList, XWMHints,
+        XftColorAllocName, XftColorAllocValue, XftColorFree, XftXlfdParse,
+        _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
+        FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
     die, len, xmalloc,
 };
@@ -104,9 +108,111 @@ fn xgeommasktogravity(mask: c_int) -> c_int {
     }
 }
 
-// DUMMY
 pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
-    unsafe { bindgen::xloadfonts(fontstr, fontsize) }
+    unsafe {
+        let pattern = if *fontstr.offset(0) == b'-' as c_char {
+            XftXlfdParse(fontstr, False, False)
+        } else {
+            FcNameParse(fontstr as *const FcChar8)
+        };
+
+        if pattern.is_null() {
+            die!("can't open font {:?}", CStr::from_ptr(fontstr));
+        }
+
+        let mut fontval = 0.0;
+        if fontsize > 1.0 {
+            FcPatternDel(pattern, FC_PIXEL_SIZE.as_ptr() as *const _);
+            FcPatternDel(pattern, FC_SIZE.as_ptr() as *const _);
+            FcPatternAddDouble(
+                pattern,
+                FC_PIXEL_SIZE.as_ptr() as *const _,
+                fontsize,
+            );
+            usedfontsize = fontsize;
+        } else {
+            if FcPatternGetDouble(
+                pattern,
+                FC_PIXEL_SIZE.as_ptr().cast(),
+                0,
+                &mut fontval,
+            ) == _FcResult_FcResultMatch
+            {
+                usedfontsize = fontval;
+            } else if FcPatternGetDouble(
+                pattern,
+                FC_SIZE.as_ptr().cast(),
+                0,
+                &mut fontval,
+            ) == _FcResult_FcResultMatch
+            {
+                usedfontsize = -1.0;
+            } else {
+                // Default font size is 12, if none given. This is to have a
+                // known usedfontsize value.
+                FcPatternAddDouble(
+                    pattern,
+                    FC_PIXEL_SIZE.as_ptr().cast(),
+                    12.0,
+                );
+                usedfontsize = 12.0;
+            }
+            defaultfontsize = usedfontsize;
+        }
+
+        if bindgen::xloadfont(&raw mut dc.font, pattern) != 0 {
+            die!("can't open font {:?}", CStr::from_ptr(fontstr));
+        }
+
+        if usedfontsize < 0.0 {
+            FcPatternGetDouble(
+                (*dc.font.match_).pattern,
+                FC_PIXEL_SIZE.as_ptr().cast(),
+                0,
+                &mut fontval,
+            );
+            usedfontsize = fontval;
+            if fontsize == 0.0 {
+                defaultfontsize = fontval;
+            }
+        }
+
+        /* Setting character width and height. */
+        win.cw = bindgen::ceilf(dc.font.width as f32 * cwscale) as i32;
+        win.ch = bindgen::ceilf(dc.font.height as f32 * chscale) as i32;
+
+        FcPatternDel(pattern, FC_SLANT.as_ptr().cast());
+        FcPatternAddInteger(
+            pattern,
+            FC_SLANT.as_ptr().cast(),
+            FC_SLANT_ITALIC as i32,
+        );
+        if bindgen::xloadfont(&raw mut dc.ifont, pattern) != 0 {
+            die!("can't open font {:?}", fontstr);
+        }
+
+        FcPatternDel(pattern, FC_WEIGHT.as_ptr().cast());
+        FcPatternAddInteger(
+            pattern,
+            FC_WEIGHT.as_ptr().cast(),
+            FC_WEIGHT_BOLD as i32,
+        );
+        if bindgen::xloadfont(&raw mut dc.ibfont, pattern) != 0 {
+            die!("can't open font {:?}", fontstr);
+        }
+
+        FcPatternDel(pattern, FC_SLANT.as_ptr().cast());
+        FcPatternAddInteger(
+            pattern,
+            FC_SLANT.as_ptr().cast(),
+            FC_SLANT_ROMAN as i32,
+        );
+        if bindgen::xloadfont(&raw mut dc.bfont, pattern) != 0 {
+            die!("can't open font {:?}", fontstr);
+        }
+
+        FcPatternDestroy(pattern);
+    }
 }
 
 /// Load colors.

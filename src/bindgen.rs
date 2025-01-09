@@ -6,9 +6,17 @@
 #![allow(clippy::approx_constant)]
 #![allow(unused)]
 
-use std::{ffi::c_char, ptr::null_mut};
+use std::{
+    ffi::{c_char, c_double},
+    ptr::null_mut,
+};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+unsafe extern "C" {
+    pub static mut usedfontsize: c_double;
+    pub static mut defaultfontsize: c_double;
+}
 
 impl Default for Term {
     fn default() -> Self {

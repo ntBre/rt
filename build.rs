@@ -31,6 +31,8 @@ fn main() {
         .blocklist_var("FP_NORMAL")
         .blocklist_var("rows")
         .blocklist_var("cols")
+        .blocklist_var("usedfontsize")
+        .blocklist_var("defaultfontsize")
         .generate()
         .expect("Unable to generate bindings");
 
