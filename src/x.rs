@@ -269,13 +269,23 @@ extern "C" fn xicdestroy(
     }
 }
 
-// DUMMY
 pub(crate) extern "C" fn ximinstantiate(
     dpy: *mut bindgen::Display,
-    client: bindgen::XPointer,
-    call: bindgen::XPointer,
+    _client: bindgen::XPointer,
+    _call: bindgen::XPointer,
 ) {
-    unsafe { bindgen::ximinstantiate(dpy, client, call) }
+    unsafe {
+        if ximopen(dpy) != 0 {
+            bindgen::XUnregisterIMInstantiateCallback(
+                xw.dpy,
+                null_mut(),
+                null_mut(),
+                null_mut(),
+                Some(ximinstantiate),
+                null_mut(),
+            );
+        }
+    }
 }
 
 pub(crate) fn xsettitle(mut p: *mut c_char) {
