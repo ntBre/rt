@@ -4,6 +4,7 @@ use std::{
     ptr::null_mut,
 };
 
+use libc::strlen;
 use x11::xlib::{
     False, InputHint, NorthEastGravity, NorthWestGravity, PBaseSize, PMaxSize,
     PMinSize, PResizeInc, PSize, PWinGravity, SouthEastGravity,
@@ -14,16 +15,19 @@ use x11::xlib::{
 use crate::{
     between,
     bindgen::{
-        self, borderpx, chscale, colorname, cwscale, dc, defaultfontsize,
-        opt_class, opt_name, opt_title, termname, usedfontsize, win, xw, Color,
-        FcChar8, FcNameParse, FcPattern, FcPatternAddDouble,
-        FcPatternAddInteger, FcPatternDel, FcPatternDestroy,
-        FcPatternGetDouble, Font_, XAllocSizeHints, XClassHint, XCreateIC,
+        self, ascii_printable, borderpx, chscale, colorname, cwscale, dc,
+        defaultfontsize, opt_class, opt_name, opt_title, termname,
+        usedfontsize, win, xw, Color, FcChar8, FcConfigSubstitute, FcFontMatch,
+        FcNameParse, FcPattern, FcPatternAddDouble, FcPatternAddInteger,
+        FcPatternDel, FcPatternDestroy, FcPatternDuplicate, FcPatternGetDouble,
+        FcPatternGetInteger, Font_, XAllocSizeHints, XClassHint, XCreateIC,
         XICCallback, XIMCallback, XNDestroyCallback, XPointer, XRenderColor,
         XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
-        XftColorAllocValue, XftColorFree, XftXlfdParse,
-        _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
-        FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
+        XftColorAllocValue, XftColorFree, XftDefaultSubstitute,
+        XftFontOpenPattern, XftTextExtentsUtf8, XftXlfdParse,
+        _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch, FC_PIXEL_SIZE,
+        FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT,
+        FC_WEIGHT_BOLD, XIC, XIM,
     },
     die, len, xmalloc,
 };
@@ -216,9 +220,104 @@ pub(crate) fn xloadfonts(fontstr: *const c_char, fontsize: c_double) {
     }
 }
 
-// DUMMY
+// TODO this returns an error code, 1 on failure and 0 on success so return a
+// result instead
 fn xloadfont(f: *mut Font_, pattern: *mut FcPattern) -> c_int {
-    unsafe { bindgen::xloadfont(f, pattern) }
+    unsafe {
+        // Manually configure instead of calling XftMatchFont so that we can use
+        // the configured pattern for "missing glyph" lookups.
+        let configured = FcPatternDuplicate(pattern);
+        if configured.is_null() {
+            return 1;
+        }
+
+        FcConfigSubstitute(null_mut(), configured, _FcMatchKind_FcMatchPattern);
+        XftDefaultSubstitute(xw.dpy, xw.scr, configured);
+
+        let mut result = MaybeUninit::uninit();
+        let match_ = FcFontMatch(null_mut(), configured, result.as_mut_ptr());
+        if match_.is_null() {
+            FcPatternDestroy(configured);
+            return 1;
+        }
+
+        (*f).match_ = XftFontOpenPattern(xw.dpy, match_);
+        if (*f).match_.is_null() {
+            FcPatternDestroy(configured);
+            FcPatternDestroy(match_);
+            return 1;
+        }
+
+        // this is a #define for XftPatternGetInteger from XftCompat.h, same
+        // with the result (Xft -> Fc)
+        let mut wantattr = 0;
+        if FcPatternGetInteger(pattern, c"slant".as_ptr(), 0, &mut wantattr)
+            == _FcResult_FcResultMatch
+        {
+            // Check if xft was unable to find a font with the appropriate slant
+            // but gave us one anyway. Try to mitigate.
+            let mut haveattr = 0;
+            if (FcPatternGetInteger(
+                (*(*f).match_).pattern,
+                c"slant".as_ptr(),
+                0,
+                &mut haveattr,
+            ) != _FcResult_FcResultMatch)
+                || haveattr < wantattr
+            {
+                (*f).badslant = 1;
+                eprintln!("font slant does not match");
+            }
+        }
+
+        if FcPatternGetInteger(pattern, c"weight".as_ptr(), 0, &mut wantattr)
+            == _FcResult_FcResultMatch
+        {
+            // Same check as above but for weights
+            let mut haveattr = 0;
+            if (FcPatternGetInteger(
+                (*(*f).match_).pattern,
+                c"weight".as_ptr(),
+                0,
+                &mut haveattr,
+            ) != _FcResult_FcResultMatch)
+                || haveattr != wantattr
+            {
+                (*f).badweight = 1;
+                eprintln!("font weight does not match");
+            }
+        }
+
+        let ap_len = strlen(ascii_printable.as_ptr().cast()) as c_int;
+
+        let mut extents = MaybeUninit::uninit();
+        XftTextExtentsUtf8(
+            xw.dpy,
+            (*f).match_,
+            ascii_printable as *const FcChar8,
+            ap_len,
+            extents.as_mut_ptr(),
+        );
+        let extents = extents.assume_init();
+
+        (*f).set = null_mut();
+        (*f).pattern = configured;
+
+        (*f).ascent = (*(*f).match_).ascent;
+        (*f).descent = (*(*f).match_).descent;
+        (*f).lbearing = 0;
+        (*f).rbearing = (*(*f).match_).max_advance_width as i16;
+
+        (*f).height = (*f).ascent + (*f).descent;
+        (*f).width = divceil(extents.xOff as c_int, ap_len);
+
+        0
+    }
+}
+
+#[inline]
+fn divceil(n: c_int, d: c_int) -> c_int {
+    (n + d - 1) / d
 }
 
 /// Load colors.
