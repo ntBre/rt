@@ -945,9 +945,17 @@ fn ttyread() -> usize {
     unsafe { bindgen::ttyread() }
 }
 
-// DUMMY
 fn tattrset(attr: c_int) -> c_int {
-    unsafe { bindgen::tattrset(attr) }
+    unsafe {
+        for i in 0..term.row - 1 {
+            for j in 0..term.col - 1 {
+                if (*Term::line(&raw mut term, i, j)).mode as i32 & attr != 0 {
+                    return 1;
+                }
+            }
+        }
+    }
+    0
 }
 
 #[inline]
