@@ -8,3 +8,6 @@ st/libst.so: $(shell find st -name '*.[ch]')
 
 run: $(lib)
 	cargo run
+
+dummy:
+	find src -name '*.rs' -exec grep -nHA1 '^// DUMMY' {} \;
