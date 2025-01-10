@@ -1,6 +1,6 @@
 use std::{
     cmp,
-    ffi::{c_int, c_uchar, c_void, CStr},
+    ffi::{c_char, c_int, c_uchar, c_void, CStr},
     mem::MaybeUninit,
     ptr::{null, null_mut},
 };
@@ -14,13 +14,12 @@ use x11::xlib::{
 };
 
 use bindgen::{
-    blinktimeout, borderpx, colorname, dc, defaultbg, defaultfg, draw, font,
-    handler, maxlatency, minlatency, mousebg, mousefg, mouseshape, opt_cmd,
-    opt_embed, opt_font, opt_io, opt_line, sel, shell, tabspaces, tattrset,
-    term, tsetdirtattr, ttynew, ttyread, usedfont, win, xsel, xw,
-    ConfigureNotify, FcInit, GlyphFontSpec, Glyph_, Line, MapNotify, TCursor,
-    Term, XConnectionNumber, XFilterEvent, XFlush, XGCValues, XNextEvent,
-    XPending,
+    blinktimeout, borderpx, colorname, dc, defaultbg, defaultfg, font, handler,
+    maxlatency, minlatency, mousebg, mousefg, mouseshape, opt_cmd, opt_embed,
+    opt_font, opt_io, opt_line, sel, shell, tabspaces, term, usedfont, win,
+    xsel, xw, ConfigureNotify, FcInit, GlyphFontSpec, Glyph_, Line, MapNotify,
+    TCursor, Term, XConnectionNumber, XFilterEvent, XFlush, XGCValues,
+    XNextEvent, XPending,
 };
 use win::{MODE_BLINK, MODE_NUMLOCK};
 
@@ -869,6 +868,36 @@ pub fn run() {
             drawing = false;
         }
     }
+}
+
+// DUMMY
+fn draw() {
+    unsafe { bindgen::draw() }
+}
+
+// DUMMY
+fn tsetdirtattr(attr: c_int) {
+    unsafe { bindgen::tsetdirtattr(attr) }
+}
+
+// DUMMY
+fn ttynew(
+    line: *const c_char,
+    cmd: *mut c_char,
+    out: *const c_char,
+    args: *mut *mut c_char,
+) -> c_int {
+    unsafe { bindgen::ttynew(line, cmd, out, args) }
+}
+
+// DUMMY
+fn ttyread() -> usize {
+    unsafe { bindgen::ttyread() }
+}
+
+// DUMMY
+fn tattrset(attr: c_int) -> c_int {
+    unsafe { bindgen::tattrset(attr) }
 }
 
 #[inline]
