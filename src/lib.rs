@@ -925,9 +925,16 @@ fn drawregion(x1: c_int, y1: c_int, x2: c_int, y2: c_int) {
     }
 }
 
-// DUMMY
 fn tsetdirtattr(attr: c_int) {
-    unsafe { bindgen::tsetdirtattr(attr) }
+    unsafe {
+        for i in 0..term.row - 1 {
+            for j in 0..term.col - 1 {
+                if (*Term::line(&raw mut term, i, j)).mode as i32 & attr != 0 {
+                    tsetdirt(i, i);
+                }
+            }
+        }
+    }
 }
 
 // DUMMY
