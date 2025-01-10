@@ -22,13 +22,13 @@ use crate::{
         FcPatternAddInteger, FcPatternDel, FcPatternDestroy,
         FcPatternDuplicate, FcPatternGetDouble, FcPatternGetInteger, Font_,
         Glyph_, XAllocSizeHints, XClassHint, XCopyArea, XCreateIC, XICCallback,
-        XIMCallback, XNDestroyCallback, XPointer, XRenderColor, XSetForeground,
-        XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
-        XftColorAllocValue, XftColorFree, XftDefaultSubstitute,
-        XftFontOpenPattern, XftTextExtentsUtf8, XftXlfdParse,
-        _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch, FC_PIXEL_SIZE,
-        FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT,
-        FC_WEIGHT_BOLD, XIC, XIM,
+        XIMCallback, XNDestroyCallback, XNPreeditAttributes, XPointer,
+        XRenderColor, XSetForeground, XSetICValues, XSetIMValues,
+        XVaCreateNestedList, XWMHints, XftColorAllocName, XftColorAllocValue,
+        XftColorFree, XftDefaultSubstitute, XftFontOpenPattern,
+        XftTextExtentsUtf8, XftXlfdParse, _FcMatchKind_FcMatchPattern,
+        _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
+        FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
     die, is_set, len,
     win::{MODE_REVERSE, MODE_VISIBLE},
@@ -593,10 +593,21 @@ pub(crate) fn finishdraw() {
     }
 }
 
-// DUMMY
 pub(crate) fn ximspot(x: i32, y: i32) {
     unsafe {
-        bindgen::xximspot(x, y);
+        if xw.ime.xic.is_null() {
+            return;
+        }
+
+        xw.ime.spot.x = (borderpx + x * win.cw) as i16;
+        xw.ime.spot.y = (borderpx + (y + 1) * win.ch) as i16;
+
+        XSetICValues(
+            xw.ime.xic,
+            XNPreeditAttributes,
+            xw.ime.spotlist,
+            null_mut::<c_void>(),
+        );
     }
 }
 
