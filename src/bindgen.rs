@@ -7,7 +7,7 @@
 #![allow(unused)]
 
 use std::{
-    ffi::{c_char, c_double},
+    ffi::{c_char, c_double, c_int},
     ptr::null_mut,
 };
 
@@ -46,5 +46,11 @@ impl Default for Term {
             tabs: null_mut(),
             lastc: 0,
         }
+    }
+}
+
+impl Term {
+    pub(crate) fn line(ptr: *mut Term, i: c_int, j: c_int) -> *mut Glyph_ {
+        unsafe { (*(*ptr).line.offset(i as isize)).offset(j as isize) }
     }
 }

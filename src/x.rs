@@ -20,16 +20,18 @@ use crate::{
         usedfontsize, win, xw, Color, FcChar8, FcConfigSubstitute, FcFontMatch,
         FcNameParse, FcPattern, FcPatternAddDouble, FcPatternAddInteger,
         FcPatternDel, FcPatternDestroy, FcPatternDuplicate, FcPatternGetDouble,
-        FcPatternGetInteger, Font_, XAllocSizeHints, XClassHint, XCreateIC,
-        XICCallback, XIMCallback, XNDestroyCallback, XPointer, XRenderColor,
-        XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
-        XftColorAllocValue, XftColorFree, XftDefaultSubstitute,
-        XftFontOpenPattern, XftTextExtentsUtf8, XftXlfdParse,
-        _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch, FC_PIXEL_SIZE,
-        FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT,
-        FC_WEIGHT_BOLD, XIC, XIM,
+        FcPatternGetInteger, Font_, Glyph_, XAllocSizeHints, XClassHint,
+        XCreateIC, XICCallback, XIMCallback, XNDestroyCallback, XPointer,
+        XRenderColor, XSetIMValues, XVaCreateNestedList, XWMHints,
+        XftColorAllocName, XftColorAllocValue, XftColorFree,
+        XftDefaultSubstitute, XftFontOpenPattern, XftTextExtentsUtf8,
+        XftXlfdParse, _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch,
+        FC_PIXEL_SIZE, FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN,
+        FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
-    die, len, xmalloc,
+    die, is_set, len,
+    win::MODE_VISIBLE,
+    xmalloc,
 };
 
 // NOTE returns bool?
@@ -544,5 +546,40 @@ pub fn xsetenv() {
             xw.win,
         );
         libc::setenv(c"WINDOWID".as_ptr(), buf.as_ptr(), 1);
+    }
+}
+
+pub fn startdraw() -> bool {
+    is_set(MODE_VISIBLE)
+}
+
+// DUMMY
+pub(crate) fn drawcursor(
+    cx: i32,
+    cy: i32,
+    g: Glyph_,
+    ox: i32,
+    oy: i32,
+    og: Glyph_,
+) {
+    unsafe { bindgen::xdrawcursor(cx, cy, g, ox, oy, og) }
+}
+
+// DUMMY
+pub(crate) fn finishdraw() {
+    unsafe { bindgen::xfinishdraw() }
+}
+
+// DUMMY
+pub(crate) fn ximspot(x: i32, y: i32) {
+    unsafe {
+        bindgen::xximspot(x, y);
+    }
+}
+
+// DUMMY
+pub(crate) fn drawline(line: *mut Glyph_, x1: i32, y1: i32, x2: i32) {
+    unsafe {
+        bindgen::xdrawline(line, x1, y1, x2);
     }
 }

@@ -870,9 +870,59 @@ pub fn run() {
     }
 }
 
-// DUMMY
 fn draw() {
-    unsafe { bindgen::draw() }
+    unsafe {
+        let mut cx = term.c.x;
+        let ocx = term.ocx;
+        let ocy = term.ocy;
+
+        if !x::startdraw() {
+            return;
+        }
+
+        // adjust cursor position
+        term.ocx = term.ocx.clamp(0, term.col - 1);
+        term.ocy = term.ocy.clamp(0, term.row - 1);
+        if (*Term::line(&raw mut term, term.ocy, term.ocx)).mode as i32
+            & ATTR_WDUMMY
+            != 0
+        {
+            term.ocx -= 1;
+        }
+        if (*Term::line(&raw mut term, term.c.y, cx)).mode as i32 & ATTR_WDUMMY
+            != 0
+        {
+            cx -= 1;
+        }
+
+        drawregion(0, 0, term.col, term.row);
+        x::drawcursor(
+            cx,
+            term.c.y,
+            *Term::line(&raw mut term, term.c.y, cx),
+            term.ocx,
+            term.ocy,
+            *Term::line(&raw mut term, term.ocy, term.ocx),
+        );
+        term.ocx = cx;
+        term.ocy = term.c.y;
+        x::finishdraw();
+        if ocx != term.ocx || ocy != term.ocy {
+            x::ximspot(term.ocx, term.ocy);
+        }
+    }
+}
+
+fn drawregion(x1: c_int, y1: c_int, x2: c_int, y2: c_int) {
+    unsafe {
+        for y in y1..y2 {
+            if *term.dirty.offset(y as isize) == 0 {
+                continue;
+            }
+            *term.dirty.offset(y as isize) = 0;
+            x::drawline(*term.line.offset(y as isize), x1, y, x2);
+        }
+    }
 }
 
 // DUMMY
