@@ -130,7 +130,7 @@ void ximinstantiate(Display *, XPointer, XPointer);
 static void ximdestroy(XIM, XPointer, XPointer);
 static int xicdestroy(XIC, XPointer, XPointer);
 void xinit(int, int);
-static void cresize(int, int);
+void cresize(int, int);
 static void xresize(int, int);
 void xhints(void);
 int xloadcolor(int, const char *, Color *);
@@ -168,7 +168,7 @@ static int match(uint, uint);
 void run(void);
 static void usage(void);
 
-static void (*handler[LASTEvent])(XEvent *) = {
+void (*handler[LASTEvent])(XEvent *) = {
 	[KeyPress] = kpress,
 	[ClientMessage] = cmessage,
 	[ConfigureNotify] = resize,
@@ -223,11 +223,11 @@ double usedfontsize = 0;
 double defaultfontsize = 0;
 
 char *opt_class = NULL;
-static char **opt_cmd  = NULL;
+char **opt_cmd  = NULL;
 char *opt_embed = NULL;
 char *opt_font  = NULL;
-static char *opt_io    = NULL;
-static char *opt_line  = NULL;
+char *opt_io    = NULL;
+char *opt_line  = NULL;
 char *opt_name  = NULL;
 char *opt_title = NULL;
 

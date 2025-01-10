@@ -16,6 +16,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 unsafe extern "C" {
     pub static mut usedfontsize: c_double;
     pub static mut defaultfontsize: c_double;
+    pub static mut shell: *mut c_char;
 }
 
 impl Default for Term {

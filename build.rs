@@ -33,6 +33,7 @@ fn main() {
         .blocklist_var("cols")
         .blocklist_var("usedfontsize")
         .blocklist_var("defaultfontsize")
+        .blocklist_var("shell")
         .generate()
         .expect("Unable to generate bindings");
 

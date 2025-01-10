@@ -1,19 +1,28 @@
 use std::{
+    cmp,
     ffi::{c_int, c_uchar, c_void, CStr},
+    mem::MaybeUninit,
     ptr::{null, null_mut},
 };
 
-use libc::{getpid, memset, strtol, CLOCK_MONOTONIC};
+use libc::{
+    __errno_location, clock_gettime, getpid, memset, pselect, strerror, strtol,
+    timespec, CLOCK_MONOTONIC, EINTR, FD_ISSET, FD_SET, FD_ZERO,
+};
 use x11::xlib::{
     False, GCGraphicsExposures, PropModeReplace, XA_CARDINAL, XA_STRING,
 };
 
 use bindgen::{
-    borderpx, colorname, dc, defaultbg, defaultfg, font, mousebg, mousefg,
-    mouseshape, opt_embed, opt_font, sel, tabspaces, term, usedfont, win, xsel,
-    xw, FcInit, GlyphFontSpec, Glyph_, Line, TCursor, Term, XGCValues,
+    blinktimeout, borderpx, colorname, dc, defaultbg, defaultfg, draw, font,
+    handler, maxlatency, minlatency, mousebg, mousefg, mouseshape, opt_cmd,
+    opt_embed, opt_font, opt_io, opt_line, sel, shell, tabspaces, tattrset,
+    term, tsetdirtattr, ttynew, ttyread, usedfont, win, xsel, xw,
+    ConfigureNotify, FcInit, GlyphFontSpec, Glyph_, Line, MapNotify, TCursor,
+    Term, XConnectionNumber, XFilterEvent, XFlush, XGCValues, XNextEvent,
+    XPending,
 };
-use win::MODE_NUMLOCK;
+use win::{MODE_BLINK, MODE_NUMLOCK};
 
 pub mod bindgen;
 pub mod win;
@@ -733,7 +742,136 @@ pub fn resettitle() {
     x::xsettitle(null_mut());
 }
 
-// DUMMY
 pub fn run() {
-    unsafe { bindgen::run() }
+    unsafe {
+        let mut ev = MaybeUninit::uninit();
+        let mut w = win.w;
+        let mut h = win.h;
+        let mut rfd = MaybeUninit::uninit();
+        let xfd = XConnectionNumber(xw.dpy);
+        let mut xev: c_int;
+        let mut seltv = timespec { tv_sec: 0, tv_nsec: 0 };
+        let mut now = timespec { tv_sec: 0, tv_nsec: 0 };
+        let mut lastblink = timespec { tv_sec: 0, tv_nsec: 0 };
+        let mut trigger = timespec { tv_sec: 0, tv_nsec: 0 };
+        let mut tv: *mut timespec;
+        // emulating do while, waiting for window mapping
+        loop {
+            XNextEvent(xw.dpy, ev.as_mut_ptr());
+            // This XFilterEvent call is required because of XOpenIM. It does
+            // filter out the key event and some client message for the input
+            // method too.
+            if XFilterEvent(ev.as_mut_ptr(), bindgen::None as u64) != 0 {
+                continue;
+            }
+            let ev = ev.assume_init();
+            if ev.type_ == ConfigureNotify as i32 {
+                w = ev.xconfigure.width;
+                h = ev.xconfigure.height;
+            }
+            if ev.type_ == MapNotify as i32 {
+                break;
+            }
+        }
+
+        let ttyfd = ttynew(opt_line, shell, opt_io, opt_cmd);
+        bindgen::cresize(w, h);
+
+        let mut timeout = -1;
+        let mut drawing = false;
+        loop {
+            FD_ZERO(rfd.as_mut_ptr());
+            FD_SET(ttyfd, rfd.as_mut_ptr());
+            FD_SET(xfd, rfd.as_mut_ptr());
+
+            if XPending(xw.dpy) != 0 {
+                timeout = 0; // existing events might not set xfd
+            }
+
+            seltv.tv_sec = timeout / 1000;
+            seltv.tv_nsec = 1_000_000 * (timeout - 1_000 * seltv.tv_sec);
+            tv = if timeout > 0 { &raw mut seltv } else { null_mut() };
+
+            if pselect(
+                cmp::max(xfd, ttyfd) + 1,
+                rfd.as_mut_ptr(),
+                null_mut(),
+                null_mut(),
+                tv,
+                null_mut(),
+            ) < 0
+            {
+                let errno = *__errno_location();
+                if errno == EINTR {
+                    continue;
+                }
+                die!("select failed: {:?}", CStr::from_ptr(strerror(errno)));
+            }
+            clock_gettime(CLOCK_MONOTONIC, &mut now);
+
+            if FD_ISSET(ttyfd, rfd.as_mut_ptr()) {
+                ttyread();
+            }
+
+            xev = 0;
+            while XPending(xw.dpy) != 0 {
+                xev = 1;
+                XNextEvent(xw.dpy, ev.as_mut_ptr());
+                if XFilterEvent(ev.as_mut_ptr(), bindgen::None as u64) != 0 {
+                    continue;
+                }
+                let mut ev = ev.assume_init();
+                if let Some(h) = handler[ev.type_ as usize] {
+                    h(&mut ev);
+                }
+            }
+
+            // To reduce flicker and tearing, when new content or event triggers
+            // drawing, we first wait a bit to ensure we got everything, and if
+            // nothing new arrives - we draw. We start with trying to wait
+            // minlatency ms. If more content arrives sooner, we retry with
+            // shorter and shorter periods, and eventually draw even without
+            // idle after maxlatency ms. Typically this results in low latency
+            // while interacting, maximum latency intervals during `cat
+            // huge.txt`, and perfect sync with periodic updates from
+            // animations/key-repeats/etc.
+            if FD_ISSET(ttyfd, rfd.as_mut_ptr()) || xev != 0 {
+                if !drawing {
+                    trigger = now;
+                    drawing = true;
+                }
+                timeout = ((maxlatency - timediff(now, trigger) as f64)
+                    / maxlatency
+                    * minlatency) as i64;
+                if timeout > 0 {
+                    continue; // we have time, try to find idle
+                }
+            }
+
+            // idle detected or maxlatency exhausted -> draw
+            timeout = -1;
+            if blinktimeout != 0 && tattrset(ATTR_BLINK) != 0 {
+                timeout = blinktimeout as i64 - timediff(now, lastblink);
+                if timeout <= 0 {
+                    if -timeout > blinktimeout as i64 {
+                        // start visible
+                        win.mode |= MODE_BLINK;
+                    }
+                    win.mode ^= MODE_BLINK;
+                    tsetdirtattr(ATTR_BLINK);
+                    lastblink = now;
+                    timeout = blinktimeout as i64;
+                }
+            }
+
+            draw();
+            XFlush(xw.dpy);
+            drawing = false;
+        }
+    }
+}
+
+#[inline]
+fn timediff(t1: timespec, t2: timespec) -> i64 {
+    (t1.tv_sec - t2.tv_sec) * 1_000 + (t1.tv_nsec - t2.tv_nsec) / 1_000_000
 }
