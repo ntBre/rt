@@ -16,21 +16,22 @@ use crate::{
     between,
     bindgen::{
         self, ascii_printable, borderpx, chscale, colorname, cwscale, dc,
-        defaultfontsize, opt_class, opt_name, opt_title, termname,
-        usedfontsize, win, xw, Color, FcChar8, FcConfigSubstitute, FcFontMatch,
-        FcNameParse, FcPattern, FcPatternAddDouble, FcPatternAddInteger,
-        FcPatternDel, FcPatternDestroy, FcPatternDuplicate, FcPatternGetDouble,
-        FcPatternGetInteger, Font_, Glyph_, XAllocSizeHints, XClassHint,
-        XCreateIC, XICCallback, XIMCallback, XNDestroyCallback, XPointer,
-        XRenderColor, XSetIMValues, XVaCreateNestedList, XWMHints,
-        XftColorAllocName, XftColorAllocValue, XftColorFree,
-        XftDefaultSubstitute, XftFontOpenPattern, XftTextExtentsUtf8,
-        XftXlfdParse, _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch,
-        FC_PIXEL_SIZE, FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN,
-        FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
+        defaultbg, defaultfg, defaultfontsize, opt_class, opt_name, opt_title,
+        termname, usedfontsize, win, xw, Color, FcChar8, FcConfigSubstitute,
+        FcFontMatch, FcNameParse, FcPattern, FcPatternAddDouble,
+        FcPatternAddInteger, FcPatternDel, FcPatternDestroy,
+        FcPatternDuplicate, FcPatternGetDouble, FcPatternGetInteger, Font_,
+        Glyph_, XAllocSizeHints, XClassHint, XCopyArea, XCreateIC, XICCallback,
+        XIMCallback, XNDestroyCallback, XPointer, XRenderColor, XSetForeground,
+        XSetIMValues, XVaCreateNestedList, XWMHints, XftColorAllocName,
+        XftColorAllocValue, XftColorFree, XftDefaultSubstitute,
+        XftFontOpenPattern, XftTextExtentsUtf8, XftXlfdParse,
+        _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch, FC_PIXEL_SIZE,
+        FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT,
+        FC_WEIGHT_BOLD, XIC, XIM,
     },
     die, is_set, len,
-    win::MODE_VISIBLE,
+    win::{MODE_REVERSE, MODE_VISIBLE},
     xmalloc,
 };
 
@@ -565,9 +566,31 @@ pub(crate) fn drawcursor(
     unsafe { bindgen::xdrawcursor(cx, cy, g, ox, oy, og) }
 }
 
-// DUMMY
 pub(crate) fn finishdraw() {
-    unsafe { bindgen::xfinishdraw() }
+    unsafe {
+        XCopyArea(
+            xw.dpy,
+            xw.buf,
+            xw.win,
+            dc.gc,
+            0,
+            0,
+            win.w as u32,
+            win.h as u32,
+            0,
+            0,
+        );
+        XSetForeground(
+            xw.dpy,
+            dc.gc,
+            (*dc.col.add(if is_set(MODE_REVERSE) {
+                defaultfg
+            } else {
+                defaultbg
+            } as usize))
+            .pixel,
+        );
+    }
 }
 
 // DUMMY
