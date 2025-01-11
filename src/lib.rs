@@ -937,7 +937,7 @@ fn tsetdirtattr(attr: c_int) {
     }
 }
 
-// DUMMY
+// DUMMY(long)
 fn ttynew(
     line: *const c_char,
     cmd: *mut c_char,
@@ -947,7 +947,7 @@ fn ttynew(
     unsafe { bindgen::ttynew(line, cmd, out, args) }
 }
 
-// DUMMY
+// DUMMY(long)
 fn ttyread() -> usize {
     unsafe { bindgen::ttyread() }
 }
