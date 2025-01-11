@@ -31,7 +31,7 @@ use crate::{
         _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
         FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
-    die, len,
+    die, len, selected,
     win::{MODE_FOCUSED, MODE_HIDE, MODE_REVERSE, MODE_VISIBLE},
     xmalloc, ATTR_BOLD, ATTR_ITALIC, ATTR_REVERSE, ATTR_STRUCK, ATTR_UNDERLINE,
     ATTR_WIDE,
@@ -677,11 +677,6 @@ pub(crate) fn drawcursor(
             );
         }
     }
-}
-
-// DUMMY
-fn selected(x: c_int, y: c_int) -> c_int {
-    unsafe { bindgen::selected(x, y) }
 }
 
 fn drawglyph(g: Glyph_, x: c_int, y: c_int) {
