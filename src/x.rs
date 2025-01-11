@@ -575,7 +575,7 @@ pub(crate) fn drawcursor(
         if selected(ox, oy) != 0 {
             og.mode ^= ATTR_REVERSE as u16;
         }
-        bindgen::xdrawglyph(og, ox, oy);
+        drawglyph(og, ox, oy);
 
         if is_set(MODE_HIDE) {
             return;
@@ -617,10 +617,10 @@ pub(crate) fn drawcursor(
                     // snowman U+2603
                     g.u = 0x2603;
                     // fallthrough to 0|1|2 case
-                    bindgen::xdrawglyph(g, cx, cy);
+                    drawglyph(g, cx, cy);
                 }
                 // blinking block, blinking block (default), or steady block
-                0..=2 => bindgen::xdrawglyph(g, cx, cy),
+                0..=2 => drawglyph(g, cx, cy),
                 // Blinking Underline or Steady Underline
                 3 | 4 => bindgen::XftDrawRect(
                     xw.draw,
@@ -682,6 +682,11 @@ pub(crate) fn drawcursor(
 // DUMMY
 fn selected(x: c_int, y: c_int) -> c_int {
     unsafe { bindgen::selected(x, y) }
+}
+
+// DUMMY
+fn drawglyph(g: Glyph_, x: c_int, y: c_int) {
+    unsafe { bindgen::xdrawglyph(g, x, y) }
 }
 
 pub(crate) fn finishdraw() {
