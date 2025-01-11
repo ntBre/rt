@@ -34,7 +34,7 @@ use crate::{
     die, len, selected,
     win::{MODE_FOCUSED, MODE_HIDE, MODE_REVERSE, MODE_VISIBLE},
     xmalloc, ATTR_BOLD, ATTR_ITALIC, ATTR_REVERSE, ATTR_STRUCK, ATTR_UNDERLINE,
-    ATTR_WIDE,
+    ATTR_WDUMMY, ATTR_WIDE,
 };
 
 #[inline]
@@ -752,9 +752,48 @@ pub(crate) fn ximspot(x: i32, y: i32) {
     }
 }
 
-// DUMMY
 pub(crate) fn drawline(line: *mut Glyph_, x1: i32, y1: i32, x2: i32) {
     unsafe {
-        bindgen::xdrawline(line, x1, y1, x2);
+        let mut base = Glyph_::default();
+        let mut specs = xw.specbuf;
+        let mut numspecs = makeglyphfontspecs(
+            specs,
+            line.offset(x1 as isize),
+            x2 - x1,
+            x1,
+            y1,
+        );
+        let mut i = 0;
+        let mut ox = 0;
+        let mut x = x1;
+        while x < x2 && i < numspecs {
+            let mut new = *line.offset(x as isize);
+            if new.mode == ATTR_WDUMMY as u16 {
+                continue;
+            }
+            if selected(x, y1) != 0 {
+                new.mode ^= ATTR_REVERSE as u16;
+            }
+            if i > 0 && attrcmp(base, new) {
+                drawglyphfontspecs(specs, base, i, ox, y1);
+                specs = specs.offset(i as isize);
+                numspecs -= i;
+                i = 0;
+            }
+            if i == 0 {
+                ox = x;
+                base = new;
+            }
+            i += 1;
+            x += 1;
+        }
+        if i > 0 {
+            drawglyphfontspecs(specs, base, i, ox, y1);
+        }
     }
+}
+
+#[inline]
+fn attrcmp(a: Glyph_, b: Glyph_) -> bool {
+    a.mode != b.mode || a.fg != b.fg || a.bg != b.bg
 }
