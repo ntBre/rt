@@ -572,7 +572,7 @@ pub(crate) fn drawcursor(
     let drawcol: Color;
     unsafe {
         // remove the old cursor
-        if bindgen::selected(ox, oy) != 0 {
+        if selected(ox, oy) != 0 {
             og.mode ^= ATTR_REVERSE as u16;
         }
         bindgen::xdrawglyph(og, ox, oy);
@@ -591,7 +591,7 @@ pub(crate) fn drawcursor(
         if is_set(MODE_REVERSE) {
             g.mode |= ATTR_REVERSE as u16;
             g.bg = defaultfg;
-            if bindgen::selected(cx, cy) != 0 {
+            if selected(cx, cy) != 0 {
                 drawcol = *dc.col.offset(defaultcs as isize);
                 g.fg = defaultrcs;
             } else {
@@ -599,7 +599,7 @@ pub(crate) fn drawcursor(
                 g.fg = defaultcs;
             }
         } else {
-            if bindgen::selected(cx, cy) != 0 {
+            if selected(cx, cy) != 0 {
                 g.fg = defaultfg;
                 g.bg = defaultrcs;
             } else {
@@ -677,6 +677,11 @@ pub(crate) fn drawcursor(
             );
         }
     }
+}
+
+// DUMMY
+fn selected(x: c_int, y: c_int) -> c_int {
+    unsafe { bindgen::selected(x, y) }
 }
 
 pub(crate) fn finishdraw() {
