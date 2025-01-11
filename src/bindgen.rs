@@ -19,36 +19,6 @@ unsafe extern "C" {
     pub static mut shell: *mut c_char;
 }
 
-impl Default for Term {
-    fn default() -> Self {
-        Term {
-            c: TCursor {
-                attr: Glyph_ { u: 0, mode: 0, fg: 0, bg: 0 },
-                x: 0,
-                y: 0,
-                state: 0,
-            },
-            // not mentioned in st
-            row: 0,
-            col: 0,
-            line: null_mut(),
-            alt: null_mut(),
-            dirty: null_mut(),
-            ocx: 0,
-            ocy: 0,
-            top: 0,
-            bot: 0,
-            mode: 0,
-            esc: 0,
-            trantbl: [0 as c_char; 4],
-            charset: 0,
-            icharset: 0,
-            tabs: null_mut(),
-            lastc: 0,
-        }
-    }
-}
-
 impl Term {
     pub(crate) fn line(ptr: *mut Term, i: c_int, j: c_int) -> *mut Glyph_ {
         unsafe { (*(*ptr).line.offset(i as isize)).offset(j as isize) }
