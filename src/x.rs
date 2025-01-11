@@ -15,25 +15,32 @@ use x11::xlib::{
 use crate::{
     between,
     bindgen::{
-        self, ascii_printable, borderpx, chscale, colorname, cwscale, dc,
-        defaultbg, defaultfg, defaultfontsize, opt_class, opt_name, opt_title,
-        termname, usedfontsize, win, xw, Color, FcChar8, FcConfigSubstitute,
-        FcFontMatch, FcNameParse, FcPattern, FcPatternAddDouble,
-        FcPatternAddInteger, FcPatternDel, FcPatternDestroy,
-        FcPatternDuplicate, FcPatternGetDouble, FcPatternGetInteger, Font_,
-        Glyph_, XAllocSizeHints, XClassHint, XCopyArea, XCreateIC, XICCallback,
-        XIMCallback, XNDestroyCallback, XNPreeditAttributes, XPointer,
-        XRenderColor, XSetForeground, XSetICValues, XSetIMValues,
-        XVaCreateNestedList, XWMHints, XftColorAllocName, XftColorAllocValue,
-        XftColorFree, XftDefaultSubstitute, XftFontOpenPattern,
-        XftTextExtentsUtf8, XftXlfdParse, _FcMatchKind_FcMatchPattern,
-        _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
-        FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
+        self, ascii_printable, borderpx, chscale, colorname, cursorthickness,
+        cwscale, dc, defaultbg, defaultcs, defaultfg, defaultfontsize,
+        defaultrcs, opt_class, opt_name, opt_title, termname, usedfontsize,
+        win, xw, Color, FcChar8, FcConfigSubstitute, FcFontMatch, FcNameParse,
+        FcPattern, FcPatternAddDouble, FcPatternAddInteger, FcPatternDel,
+        FcPatternDestroy, FcPatternDuplicate, FcPatternGetDouble,
+        FcPatternGetInteger, Font_, Glyph_, XAllocSizeHints, XClassHint,
+        XCopyArea, XCreateIC, XICCallback, XIMCallback, XNDestroyCallback,
+        XNPreeditAttributes, XPointer, XRenderColor, XSetForeground,
+        XSetICValues, XSetIMValues, XVaCreateNestedList, XWMHints,
+        XftColorAllocName, XftColorAllocValue, XftColorFree,
+        XftDefaultSubstitute, XftFontOpenPattern, XftTextExtentsUtf8,
+        XftXlfdParse, _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch,
+        FC_PIXEL_SIZE, FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN,
+        FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
-    die, is_set, len,
-    win::{MODE_REVERSE, MODE_VISIBLE},
-    xmalloc,
+    die, len,
+    win::{MODE_FOCUSED, MODE_HIDE, MODE_REVERSE, MODE_VISIBLE},
+    xmalloc, ATTR_BOLD, ATTR_ITALIC, ATTR_REVERSE, ATTR_STRUCK, ATTR_UNDERLINE,
+    ATTR_WIDE,
 };
+
+#[inline]
+fn is_set(flag: c_int) -> bool {
+    unsafe { win.mode & flag != 0 }
+}
 
 // NOTE returns bool?
 pub fn xsetcursor(cursor: c_int) -> c_int {
@@ -554,16 +561,122 @@ pub fn startdraw() -> bool {
     is_set(MODE_VISIBLE)
 }
 
-// DUMMY
 pub(crate) fn drawcursor(
     cx: i32,
     cy: i32,
-    g: Glyph_,
+    mut g: Glyph_,
     ox: i32,
     oy: i32,
-    og: Glyph_,
+    mut og: Glyph_,
 ) {
-    unsafe { bindgen::xdrawcursor(cx, cy, g, ox, oy, og) }
+    let drawcol: Color;
+    unsafe {
+        // remove the old cursor
+        if bindgen::selected(ox, oy) != 0 {
+            og.mode ^= ATTR_REVERSE as u16;
+        }
+        bindgen::xdrawglyph(og, ox, oy);
+
+        if is_set(MODE_HIDE) {
+            return;
+        }
+
+        // select the right color for the right mode
+        g.mode &= (ATTR_BOLD
+            | ATTR_ITALIC
+            | ATTR_UNDERLINE
+            | ATTR_STRUCK
+            | ATTR_WIDE) as u16;
+
+        if is_set(MODE_REVERSE) {
+            g.mode |= ATTR_REVERSE as u16;
+            g.bg = defaultfg;
+            if bindgen::selected(cx, cy) != 0 {
+                drawcol = *dc.col.offset(defaultcs as isize);
+                g.fg = defaultrcs;
+            } else {
+                drawcol = *dc.col.offset(defaultrcs as isize);
+                g.fg = defaultcs;
+            }
+        } else {
+            if bindgen::selected(cx, cy) != 0 {
+                g.fg = defaultfg;
+                g.bg = defaultrcs;
+            } else {
+                g.fg = defaultbg;
+                g.bg = defaultcs;
+            }
+            drawcol = *dc.col.offset(g.bg as isize);
+        }
+
+        // draw the new one
+        if is_set(MODE_FOCUSED) {
+            match win.cursor {
+                // st extension
+                7 => {
+                    // snowman U+2603
+                    g.u = 0x2603;
+                    // fallthrough to 0|1|2 case
+                    bindgen::xdrawglyph(g, cx, cy);
+                }
+                // blinking block, blinking block (default), or steady block
+                0..=2 => bindgen::xdrawglyph(g, cx, cy),
+                // Blinking Underline or Steady Underline
+                3 | 4 => bindgen::XftDrawRect(
+                    xw.draw,
+                    &drawcol,
+                    borderpx + cx * win.cw,
+                    borderpx + (cy + 1) * win.ch - cursorthickness as i32,
+                    win.cw as u32,
+                    cursorthickness,
+                ),
+                // Blinking bar or Steady bar
+                5 | 6 => bindgen::XftDrawRect(
+                    xw.draw,
+                    &drawcol,
+                    borderpx + cx * win.cw,
+                    borderpx + cy * win.ch,
+                    cursorthickness,
+                    win.ch as u32,
+                ),
+                _ => {}
+            }
+        } else {
+            // unfocused
+            bindgen::XftDrawRect(
+                xw.draw,
+                &drawcol,
+                borderpx + cx * win.cw,
+                borderpx + cy * win.ch,
+                win.cw as u32 - 1,
+                1,
+            );
+            bindgen::XftDrawRect(
+                xw.draw,
+                &drawcol,
+                borderpx + cx * win.cw,
+                borderpx + cy * win.ch,
+                1,
+                win.ch as u32 - 1,
+            );
+            bindgen::XftDrawRect(
+                xw.draw,
+                &drawcol,
+                borderpx + (cx + 1) * win.cw - 1,
+                borderpx + cy * win.ch,
+                1,
+                win.ch as u32 - 1,
+            );
+            bindgen::XftDrawRect(
+                xw.draw,
+                &drawcol,
+                borderpx + cx * win.cw,
+                borderpx + (cy + 1) * win.ch - 1,
+                win.cw as u32,
+                1,
+            );
+        }
+    }
 }
 
 pub(crate) fn finishdraw() {
