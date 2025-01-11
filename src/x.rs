@@ -684,9 +684,13 @@ fn selected(x: c_int, y: c_int) -> c_int {
     unsafe { bindgen::selected(x, y) }
 }
 
-// DUMMY
 fn drawglyph(g: Glyph_, x: c_int, y: c_int) {
-    unsafe { bindgen::xdrawglyph(g, x, y) }
+    unsafe {
+        let mut spec = MaybeUninit::uninit();
+        let numspecs =
+            bindgen::xmakeglyphfontspecs(spec.as_mut_ptr(), &g, 1, x, y);
+        bindgen::xdrawglyphfontspecs(spec.as_mut_ptr(), g, numspecs, x, y);
+    }
 }
 
 pub(crate) fn finishdraw() {
