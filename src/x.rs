@@ -26,10 +26,10 @@ use crate::{
         XNPreeditAttributes, XPointer, XRenderColor, XSetForeground,
         XSetICValues, XSetIMValues, XVaCreateNestedList, XWMHints,
         XftColorAllocName, XftColorAllocValue, XftColorFree,
-        XftDefaultSubstitute, XftFontOpenPattern, XftTextExtentsUtf8,
-        XftXlfdParse, _FcMatchKind_FcMatchPattern, _FcResult_FcResultMatch,
-        FC_PIXEL_SIZE, FC_SIZE, FC_SLANT, FC_SLANT_ITALIC, FC_SLANT_ROMAN,
-        FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
+        XftDefaultSubstitute, XftFontOpenPattern, XftGlyphFontSpec,
+        XftTextExtentsUtf8, XftXlfdParse, _FcMatchKind_FcMatchPattern,
+        _FcResult_FcResultMatch, FC_PIXEL_SIZE, FC_SIZE, FC_SLANT,
+        FC_SLANT_ITALIC, FC_SLANT_ROMAN, FC_WEIGHT, FC_WEIGHT_BOLD, XIC, XIM,
     },
     die, len,
     win::{MODE_FOCUSED, MODE_HIDE, MODE_REVERSE, MODE_VISIBLE},
@@ -685,12 +685,31 @@ fn selected(x: c_int, y: c_int) -> c_int {
 }
 
 fn drawglyph(g: Glyph_, x: c_int, y: c_int) {
-    unsafe {
-        let mut spec = MaybeUninit::uninit();
-        let numspecs =
-            bindgen::xmakeglyphfontspecs(spec.as_mut_ptr(), &g, 1, x, y);
-        bindgen::xdrawglyphfontspecs(spec.as_mut_ptr(), g, numspecs, x, y);
-    }
+    let mut spec = MaybeUninit::uninit();
+    let numspecs = makeglyphfontspecs(spec.as_mut_ptr(), &g, 1, x, y);
+    drawglyphfontspecs(spec.as_mut_ptr(), g, numspecs, x, y);
+}
+
+// DUMMY(long)
+fn makeglyphfontspecs(
+    specs: *mut XftGlyphFontSpec,
+    glyphs: *const Glyph_,
+    len: c_int,
+    x: c_int,
+    y: c_int,
+) -> c_int {
+    unsafe { bindgen::xmakeglyphfontspecs(specs, glyphs, len, x, y) }
+}
+
+// DUMMY(long)
+fn drawglyphfontspecs(
+    specs: *const XftGlyphFontSpec,
+    base: Glyph_,
+    len: c_int,
+    x: c_int,
+    y: c_int,
+) {
+    unsafe { bindgen::xdrawglyphfontspecs(specs, base, len, x, y) }
 }
 
 pub(crate) fn finishdraw() {
