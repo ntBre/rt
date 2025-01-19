@@ -17,6 +17,8 @@ unsafe extern "C" {
     pub static mut usedfontsize: c_double;
     pub static mut defaultfontsize: c_double;
     pub static mut shell: *mut c_char;
+    pub static mut iofd: c_int;
+    pub static mut cmdfd: c_int;
 }
 
 impl Term {

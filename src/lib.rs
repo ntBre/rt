@@ -6,20 +6,21 @@ use std::{
 };
 
 use libc::{
-    __errno_location, clock_gettime, getpid, memset, pselect, strerror, strtol,
-    timespec, CLOCK_MONOTONIC, EINTR, FD_ISSET, FD_SET, FD_ZERO,
+    __errno_location, clock_gettime, dup2, getpid, memset, pselect,
+    sighandler_t, strcmp, strerror, strtol, timespec, CLOCK_MONOTONIC, EINTR,
+    FD_ISSET, FD_SET, FD_ZERO, O_CREAT, O_RDWR, O_WRONLY, SIGCHLD, TIOCSCTTY,
 };
 use x11::xlib::{
     False, GCGraphicsExposures, PropModeReplace, XA_CARDINAL, XA_STRING,
 };
 
 use bindgen::{
-    blinktimeout, borderpx, colorname, dc, defaultbg, defaultfg, font, handler,
-    maxlatency, minlatency, mousebg, mousefg, mouseshape, opt_cmd, opt_embed,
-    opt_font, opt_io, opt_line, sel, shell, tabspaces, term, usedfont, win,
-    xsel, xw, ConfigureNotify, FcInit, GlyphFontSpec, Glyph_, Line, MapNotify,
-    TCursor, Term, XConnectionNumber, XFilterEvent, XFlush, XGCValues,
-    XNextEvent, XPending,
+    blinktimeout, borderpx, cmdfd, colorname, dc, defaultbg, defaultfg, font,
+    handler, iofd, maxlatency, minlatency, mousebg, mousefg, mouseshape,
+    opt_cmd, opt_embed, opt_font, opt_io, opt_line, sel, shell, tabspaces,
+    term, usedfont, win, xsel, xw, ConfigureNotify, FcInit, GlyphFontSpec,
+    Glyph_, Line, MapNotify, TCursor, Term, XConnectionNumber, XFilterEvent,
+    XFlush, XGCValues, XNextEvent, XPending,
 };
 use win::{MODE_BLINK, MODE_NUMLOCK};
 
@@ -102,6 +103,13 @@ where
 #[inline]
 pub(crate) fn len<T>(arr: *const [T]) -> usize {
     unsafe { size_of_val(&*arr) / size_of::<T>() }
+}
+
+pub(crate) fn strerrno() -> String {
+    unsafe {
+        let cs = CStr::from_ptr(strerror(*__errno_location()));
+        cs.to_string_lossy().to_string()
+    }
 }
 
 /// Initialize the global terminal in `term` to the given size and with default
@@ -937,14 +945,85 @@ fn tsetdirtattr(attr: c_int) {
     }
 }
 
-// DUMMY(long)
 fn ttynew(
     line: *const c_char,
     cmd: *mut c_char,
     out: *const c_char,
     args: *mut *mut c_char,
 ) -> c_int {
-    unsafe { bindgen::ttynew(line, cmd, out, args) }
+    unsafe {
+        if !out.is_null() {
+            term.mode |= MODE_PRINT;
+            bindgen::iofd = if strcmp(out, c"-".as_ptr()) == 0 {
+                1
+            } else {
+                libc::open(out, O_WRONLY | O_CREAT, 0o666)
+            };
+            if bindgen::iofd < 0 {
+                // TODO CStrs here
+                eprintln!(
+                    "Error opening {:?}:{:?}",
+                    out,
+                    strerror(*__errno_location())
+                );
+            }
+        }
+
+        if !line.is_null() {
+            bindgen::cmdfd = libc::open(line, O_RDWR);
+            if bindgen::cmdfd < 0 {
+                die!(
+                    "Open line `{:?}` failed: {:?}",
+                    line,
+                    strerror(*__errno_location())
+                );
+            }
+            dup2(bindgen::cmdfd, 0);
+            bindgen::stty(args);
+            return bindgen::cmdfd;
+        }
+
+        // seems to work fine on linux, openbsd and freebsd
+        let mut m = 0;
+        let mut s = 0;
+        if libc::openpty(&mut m, &mut s, null_mut(), null_mut(), null_mut()) < 0
+        {
+            die!("openpty failed: {:?}", strerror(*__errno_location()));
+        }
+
+        let pid = libc::fork();
+        match pid {
+            -1 => {
+                die!("fork failed: {}", strerrno());
+            }
+            0 => {
+                libc::close(iofd);
+                libc::close(m);
+                libc::setsid();
+                libc::dup2(s, 0);
+                libc::dup2(s, 1);
+                libc::dup2(s, 2);
+                if libc::ioctl(s, TIOCSCTTY, null_mut::<c_void>()) < 0 {
+                    die!("ioctly TIOSCTTY failed: {}", strerrno());
+                }
+                if s > 2 {
+                    libc::close(s);
+                }
+                // skipping ifdef openbsd pledge
+                bindgen::execsh(cmd, args);
+            }
+            _ => {
+                libc::close(s);
+                cmdfd = m;
+                libc::signal(
+                    SIGCHLD,
+                    bindgen::sigchld as *mut c_void as sighandler_t,
+                );
+            }
+        }
+
+        cmdfd
+    }
 }
 
 // DUMMY(long)

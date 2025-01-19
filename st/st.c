@@ -108,9 +108,6 @@ typedef struct {
 	int narg;              /* nb of args */
 } STREscape;
 
-static void execsh(char *, char **);
-static void stty(char **);
-static void sigchld(int);
 static void ttywriteraw(const char *, size_t);
 
 static void csidump(void);
@@ -171,8 +168,6 @@ static ssize_t xwrite(int, const char *, size_t);
 #include "global.h"
 static CSIEscape csiescseq;
 static STREscape strescseq;
-static int iofd = 1;
-static int cmdfd;
 static pid_t pid;
 
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
