@@ -954,12 +954,12 @@ fn ttynew(
     unsafe {
         if !out.is_null() {
             term.mode |= MODE_PRINT;
-            bindgen::iofd = if strcmp(out, c"-".as_ptr()) == 0 {
+            iofd = if strcmp(out, c"-".as_ptr()) == 0 {
                 1
             } else {
                 libc::open(out, O_WRONLY | O_CREAT, 0o666)
             };
-            if bindgen::iofd < 0 {
+            if iofd < 0 {
                 // TODO CStrs here
                 eprintln!(
                     "Error opening {:?}:{:?}",
@@ -970,17 +970,17 @@ fn ttynew(
         }
 
         if !line.is_null() {
-            bindgen::cmdfd = libc::open(line, O_RDWR);
-            if bindgen::cmdfd < 0 {
+            cmdfd = libc::open(line, O_RDWR);
+            if cmdfd < 0 {
                 die!(
                     "Open line `{:?}` failed: {:?}",
                     line,
                     strerror(*__errno_location())
                 );
             }
-            dup2(bindgen::cmdfd, 0);
-            bindgen::stty(args);
-            return bindgen::cmdfd;
+            dup2(cmdfd, 0);
+            stty(args);
+            return cmdfd;
         }
 
         // seems to work fine on linux, openbsd and freebsd
@@ -1010,20 +1010,32 @@ fn ttynew(
                     libc::close(s);
                 }
                 // skipping ifdef openbsd pledge
-                bindgen::execsh(cmd, args);
+                execsh(cmd, args);
             }
             _ => {
                 libc::close(s);
                 cmdfd = m;
-                libc::signal(
-                    SIGCHLD,
-                    bindgen::sigchld as *mut c_void as sighandler_t,
-                );
+                libc::signal(SIGCHLD, sigchld as *mut c_void as sighandler_t);
             }
         }
 
         cmdfd
     }
+}
+
+// DUMMY
+fn stty(args: *mut *mut c_char) {
+    unsafe { bindgen::stty(args) }
+}
+
+// DUMMY
+fn execsh(cmd: *mut c_char, args: *mut *mut c_char) {
+    unsafe { bindgen::execsh(cmd, args) }
+}
+
+// DUMMY
+fn sigchld(a: c_int) {
+    unsafe { bindgen::sigchld(a) }
 }
 
 // DUMMY(long)
