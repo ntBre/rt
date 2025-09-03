@@ -8,4 +8,4 @@ libc = "0.2.174"
 x11 = { version = "2.21.0", features = ["xlib"] }
 
 [build-dependencies]
-bindgen = "0.72.0"
+bindgen = "0.72.1"
